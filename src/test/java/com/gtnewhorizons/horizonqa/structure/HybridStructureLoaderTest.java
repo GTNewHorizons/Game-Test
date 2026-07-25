@@ -68,6 +68,101 @@ public class HybridStructureLoaderTest {
     }
 
     @Test
+    public void missingFormatVersionDefaultsToItemFreeLegacyFormat() throws Exception {
+        HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:missing_version");
+
+        assertEquals(
+            0,
+            template.getEntities()
+                .tagCount());
+    }
+
+    @Test
+    public void legacyNumericItemStackIsRejectedByDefault() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:legacy_numeric_stack"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("format_version 1"));
+        assertTrue(
+            error.getMessage()
+                .contains("unsafe numeric ItemStack ID"));
+        assertTrue(
+            error.getMessage()
+                .contains("$.entities[0].Item"));
+        assertTrue(
+            error.getMessage()
+                .contains("-Dhorizonqa.allowLegacyNumericItemIds=true"));
+    }
+
+    @Test
+    public void trustedLegacyNumericItemStackStaysRuntimeNativeForMigration() throws Exception {
+        HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:legacy_numeric_stack", true);
+
+        NBTTagCompound item = template.getEntities()
+            .getCompoundTagAt(0)
+            .getCompoundTag("Item");
+        assertTrue(item.hasKey("id", 99));
+        assertFalse(item.hasKey("id", 8));
+        assertEquals(383, item.getShort("id"));
+        assertEquals(1, item.getByte("Count"));
+        assertEquals(93, item.getShort("Damage"));
+    }
+
+    @Test
+    public void currentFormatPreservesUnmarkedNumericItemLikeData() throws Exception {
+        HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:current_numeric_stack");
+
+        NBTTagCompound modData = template.getEntities()
+            .getCompoundTagAt(0)
+            .getCompoundTag("ModData");
+        assertEquals(383, modData.getShort("id"));
+        assertEquals(1, modData.getByte("Count"));
+        assertEquals(93, modData.getShort("Damage"));
+    }
+
+    @Test
+    public void missingNamedItemIsRejectedDuringTemplateLoading() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:missing_named_stack"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("missingmod:missing_item"));
+        assertTrue(
+            error.getMessage()
+                .contains("$.entities[0].Item"));
+    }
+
+    @Test
+    public void unsupportedFormatVersionIsRejected() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:unsupported_version"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("unsupported format_version 3"));
+        assertTrue(
+            error.getMessage()
+                .contains("supported versions: 1 and 2"));
+    }
+
+    @Test
+    public void nonIntegerFormatVersionIsRejected() {
+        TemplateException error = assertThrows(
+            TemplateException.class,
+            () -> HybridStructureLoader.load("horizonqatest:non_integer_version"));
+
+        assertTrue(
+            error.getMessage()
+                .contains("'format_version' must be an integer"));
+    }
+
+    @Test
     public void annotationsLoadCoordinateLabels() throws Exception {
         HybridStructureTemplate template = HybridStructureLoader.load("horizonqatest:annotated");
 

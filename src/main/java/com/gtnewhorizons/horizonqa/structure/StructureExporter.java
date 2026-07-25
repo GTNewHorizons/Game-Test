@@ -27,9 +27,11 @@ import net.minecraft.world.WorldServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.gtnewhorizons.horizonqa.internal.ItemStackExportCapture;
+
 public final class StructureExporter {
 
-    private static final int VERSION_NUMBER = 1;
+    private static final int VERSION_NUMBER = HybridStructureTemplate.CURRENT_FORMAT_VERSION;
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
 
@@ -122,7 +124,7 @@ public final class StructureExporter {
                         TileEntity te = world.getTileEntity(wx, wy, wz);
                         if (te != null) {
                             NBTTagCompound teNbt = new NBTTagCompound();
-                            te.writeToNBT(teNbt);
+                            writeTileEntityNbt(te, teNbt);
                             teNbt.setInteger("x", x);
                             teNbt.setInteger("y", y);
                             teNbt.setInteger("z", z);
@@ -137,6 +139,8 @@ public final class StructureExporter {
         if (entityCount > 0) {
             entityData.setTag(ENTITIES_KEY, entities);
         }
+        NBTTagCompound structureData = PortableItemStackNbt
+            .encodeForTemplate(StructureNbt.combine(tileData, entityData));
 
         if (sortedUniqueBlocks.size() > KEY_SEQUENCE.length()) {
             throw new IOException(
@@ -259,7 +263,6 @@ public final class StructureExporter {
         }
         LOG.info("StructureExporter: wrote layout -> {}", jsonFile.getAbsolutePath());
 
-        NBTTagCompound structureData = StructureNbt.combine(tileData, entityData);
         File snbtFile = new File(outputDir, name + ".snbt");
         File nbtFile = new File(outputDir, name + ".nbt");
         ensureParentDirectory(snbtFile);
@@ -379,7 +382,7 @@ public final class StructureExporter {
             }
 
             NBTTagCompound entityNbt = new NBTTagCompound();
-            if (!entity.writeToNBTOptional(entityNbt)) {
+            if (!writeEntityNbt(entity, entityNbt)) {
                 continue;
             }
             relativizeEntityNbt(entityNbt, x1, y1, z1);
@@ -388,6 +391,18 @@ public final class StructureExporter {
         }
 
         return entityCount;
+    }
+
+    private static void writeTileEntityNbt(TileEntity tileEntity, NBTTagCompound output) {
+        try (ItemStackExportCapture.Scope ignored = ItemStackExportCapture.open()) {
+            tileEntity.writeToNBT(output);
+        }
+    }
+
+    private static boolean writeEntityNbt(Entity entity, NBTTagCompound output) {
+        try (ItemStackExportCapture.Scope ignored = ItemStackExportCapture.open()) {
+            return entity.writeToNBTOptional(output);
+        }
     }
 
     private static boolean isEntityInSelection(Entity entity, AxisAlignedBB selection) {

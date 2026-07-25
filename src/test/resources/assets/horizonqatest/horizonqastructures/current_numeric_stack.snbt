@@ -1,0 +1,13 @@
+{
+  entities: [
+    {
+      id: "ExampleEntity",
+      ModData: {
+        Count: 1b,
+        Damage: 93s,
+        id: 383s
+      }
+    }
+  ],
+  tiles: []
+}

@@ -5,6 +5,9 @@ import net.minecraft.nbt.NBTTagList;
 
 public final class HybridStructureTemplate {
 
+    static final int LEGACY_FORMAT_VERSION = 1;
+    static final int CURRENT_FORMAT_VERSION = 2;
+
     public static final class PaletteEntry {
 
         public final String name;
