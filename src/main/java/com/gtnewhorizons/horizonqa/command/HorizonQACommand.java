@@ -35,6 +35,7 @@ import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
@@ -148,13 +149,20 @@ public class HorizonQACommand extends CommandBase {
                 return getListOfStringsMatchingLastWord(args, ids);
             }
             if ("runall".equals(args[0])) {
-                Set<String> namespaces = new LinkedHashSet<>();
+                Set<String> selectors = new LinkedHashSet<>();
                 for (GameTestDefinition def : GameTestRegistry.getAllTests()) {
                     String id = def.getTestId();
                     int colon = id.indexOf(':');
-                    if (colon > 0) namespaces.add(id.substring(0, colon));
+                    int dot = id.lastIndexOf('.');
+                    if (colon > 0) selectors.add(id.substring(0, colon));
+                    selectors.add(
+                        def.getMethod()
+                            .getDeclaringClass()
+                            .getSimpleName());
+                    if (colon > 0 && dot > colon) selectors.add(id.substring(0, dot));
+                    selectors.add(id);
                 }
-                return getListOfStringsMatchingLastWord(args, namespaces.toArray(new String[0]));
+                return getListOfStringsMatchingLastWord(args, selectors.toArray(new String[0]));
             }
             if ("tp".equals(args[0])) {
                 return getListOfStringsMatchingLastWord(args, knownCellIds());
@@ -228,14 +236,14 @@ public class HorizonQACommand extends CommandBase {
     private void handleRunAll(ICommandSender sender, String[] args) {
         List<GameTestDefinition> tests;
         if (args.length >= 2) {
-            String ns = args[1];
-            tests = GameTestRegistry.getTestsForNamespace(ns);
+            String selector = args[1];
+            tests = selectRunAllTests(selector);
             if (tests.isEmpty()) {
                 sender.addChatMessage(
                     new ChatComponentText(
-                        EnumChatFormatting.RED + "No tests found for namespace '"
+                        EnumChatFormatting.RED + "No tests found for selector '"
                             + EnumChatFormatting.YELLOW
-                            + ns
+                            + selector
                             + EnumChatFormatting.RED
                             + "'."));
                 return;
@@ -286,6 +294,10 @@ public class HorizonQACommand extends CommandBase {
                     EnumChatFormatting.RED
                         + "No tests launched. Check TEMPLATE_ERROR markers and the server log for details."));
         }
+    }
+
+    static List<GameTestDefinition> selectRunAllTests(String selector) {
+        return GameTestSelection.matchingValidTests(GameTestRegistry.getAllTests(), selector);
     }
 
     private void handleRunFailed(ICommandSender sender, String[] args) {

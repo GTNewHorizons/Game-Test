@@ -91,25 +91,29 @@ Selector grammar:
 
 ```text
 selectors := selector ("," selector)*
-selector  := namespace | exact-test-id
-namespace := token-without-colon
-exact-test-id := namespace ":" class-and-method
+selector  := unqualified-selector | test-id-prefix
+unqualified-selector := token-without-colon
+test-id-prefix := namespace ":" class-or-method-prefix
 ```
 
 Rules:
 
 - unset or empty selects all valid tests,
-- `namespace` selects every valid test whose id starts with `namespace:`,
-- `namespace:Class.method` selects one exact test ID,
+- an unqualified selector matches either a namespace or a holder's simple or fully qualified class name,
+- a test-ID prefix contains `:` and matches every valid test ID that starts with the selector,
+- a full test ID remains valid and normally selects one test; use a shorter method-name prefix to select a subsystem,
 - tokens are trimmed around commas,
 - empty tokens such as `a,,b` are invalid,
 - `*` is not supported,
-- exact test ids must contain exactly one `:`.
+- test-ID prefixes must contain exactly one `:`.
 
 Examples:
 
 ```text
 -Dhorizonqa.tests=horizonqaexamples
+-Dhorizonqa.tests=BasicTests
+-Dhorizonqa.tests=horizonqaexamples:BasicTests
+-Dhorizonqa.tests=horizonqaexamples:BasicTests.simple
 -Dhorizonqa.tests=horizonqaexamples:BasicTests.simplePass
 -Dhorizonqa.tests=horizonqaexamples,othermod:SmokeTests.boots
 ```

@@ -19,7 +19,7 @@ Invalid definitions are excluded from the runnable set and logged with a reason.
 
 The selection source depends on how the framework is running:
 
-- Interactive commands choose an exact test, a namespace, or remembered failures and launch the resulting tests directly.
+- Interactive commands choose an exact test, a namespace, a holder or test-ID prefix, or remembered failures and launch the resulting tests directly.
 - Automatic execution applies `horizonqa.tests` selectors after server startup.
 - Manually reported commands use their command arguments and ignore the automatic selector property.
 

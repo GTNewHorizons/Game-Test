@@ -26,6 +26,8 @@ After joining with an operator account, run one test or a suite:
 ```text
 /horizonqa run mymod:SmokeTests.emptyCellPasses
 /horizonqa runall mymod
+/horizonqa runall SmokeTests
+/horizonqa runall mymod:SmokeTests.emptyCell
 ```
 
 `/qa` is an alias for `/horizonqa`. Commands require permission level 2.
@@ -66,7 +68,7 @@ The CI preset:
 - writes `TEST-horizonqa.xml` and `horizonqa-result.json`,
 - requests process exit with code `0`, `1`, or `2`.
 
-Use `horizonqa.tests` to select a namespace or exact test ID:
+Use `horizonqa.tests` to select a namespace, holder class, or test-ID prefix:
 
 ```bash
 ./gradlew runServer \

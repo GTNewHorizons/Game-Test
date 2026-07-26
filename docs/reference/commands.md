@@ -12,7 +12,7 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | Subcommand  | Usage                           | Description                                                               |
 |-------------|---------------------------------|---------------------------------------------------------------------------|
 | `run`       | `/horizonqa run <testId>`       | Run a single test by full id                                              |
-| `runall`    | `/horizonqa runall [namespace]` | Run all tests, or filter by id prefix `<namespace>:`                      |
+| `runall`    | `/horizonqa runall [selector]`  | Run all tests, or filter by namespace, holder class, or test-ID prefix    |
 | `runfailed` | `/horizonqa runfailed`          | Re-run failures remembered by the current mode                            |
 | `tp`        | `/horizonqa tp <testId>`        | Teleport to the placed cell for a test ID                                 |
 | `runthis`   | `/horizonqa runthis`            | Re-run the test cell you are standing inside                              |
@@ -25,7 +25,17 @@ Primary command: **`/horizonqa`** (alias **`/qa`**). Requires permission level *
 | `label`     | `/horizonqa label <name>`       | Label the coordinate currently targeted by the Horizon Wand               |
 | `labels`    | `/horizonqa labels <subcommand>` | List, remove, or clear labels on the current Horizon Wand                 |
 
-Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, namespaces on `runall`, discovered template names on `load`, and label names on `labels remove`.
+Tab-completion is wired for subcommands, full test ids on `run`, placed test ids on `tp`, namespaces, holder classes, holder ID prefixes, and full test IDs on `runall`, discovered template names on `load`, and label names on `labels remove`.
+
+`runall` selectors use the same matching rules as `horizonqa.tests`:
+
+- an unqualified token matches either a namespace or a holder's simple or fully qualified class name,
+- a token containing `:` matches every test ID that starts with that token.
+
+For example, `/horizonqa runall IOPortTests` selects that holder across namespaces,
+`/horizonqa runall appliedenergistics2:IOPortTests` selects the holder by ID prefix, and
+`/horizonqa runall appliedenergistics2:IOPortTests.fillMode` selects a group of methods. Use
+`/horizonqa run <testId>` when exactly one full test ID must run.
 
 When the server starts in a non-interactive reported-batch configuration, such as `-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false`, `run`, `runall`, and `runfailed` use the CI batch runner and write JUnit XML plus status JSON after the batch completes. The server stays running unless `-Dhorizonqa.stopServer=true` is set.
 

@@ -64,14 +64,17 @@ Discovery logs every invalid definition with its reason. See [Annotations](../re
 
 ## A selector matches no tests
 
-`horizonqa.tests` accepts only namespace selectors and exact test IDs:
+`horizonqa.tests` accepts namespaces, holder class names, and test-ID prefixes:
 
 ```text
 -Dhorizonqa.tests=mymod
+-Dhorizonqa.tests=SmokeTests
+-Dhorizonqa.tests=mymod:SmokeTests
+-Dhorizonqa.tests=mymod:SmokeTests.emptyCell
 -Dhorizonqa.tests=mymod:SmokeTests.emptyCellPasses
 ```
 
-Wildcards are not supported. A valid selector that matches nothing is an infrastructure issue in automatic CI. Use `horizonqa.allowNoTests=true` only when an empty selection is expected.
+Unqualified selectors match a namespace or the simple or fully qualified name of a holder class. Selectors containing `:` are test-ID prefixes. Wildcards are not supported. A valid selector that matches nothing is an infrastructure issue in automatic CI. Use `horizonqa.allowNoTests=true` only when an empty selection is expected.
 
 ## A template cannot be loaded
 

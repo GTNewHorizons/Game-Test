@@ -35,9 +35,9 @@ public class GameTestSelectionTest {
         List<GameTestDefinition> validTests = Arrays
             .asList(definition("moda:Suite.first"), definition("moda:Suite.extra"), definition("modb:Suite.second"));
         List<TestSelector> selectors = Arrays.asList(
-            new TestSelector(SelectorType.EXACT_TEST_ID, "modb:Suite.second"),
-            new TestSelector(SelectorType.NAMESPACE, "moda"),
-            new TestSelector(SelectorType.EXACT_TEST_ID, "moda:Suite.first"));
+            new TestSelector(SelectorType.TEST_ID_PREFIX, "modb:Suite.second"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "moda"),
+            new TestSelector(SelectorType.TEST_ID_PREFIX, "moda:Suite.first"));
 
         GameTestSelection selection = GameTestSelection
             .from(validTests, Collections.emptyList(), Collections.emptyList(), false, selectors);
@@ -49,6 +49,51 @@ public class GameTestSelectionTest {
     }
 
     @Test
+    public void holderSelectorsAcceptSimpleAndFullyQualifiedClassNames() throws Exception {
+        GameTestDefinition dummy = definition("moda:DummyTests.first", DummyTests.class);
+        GameTestDefinition other = definition("moda:OtherTests.second", OtherTests.class);
+        List<GameTestDefinition> validTests = Arrays.asList(dummy, other);
+
+        GameTestSelection simpleName = GameTestSelection.from(
+            validTests,
+            Collections.emptyList(),
+            Collections.emptyList(),
+            false,
+            Collections.singletonList(new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "DummyTests")));
+        GameTestSelection canonicalName = GameTestSelection.from(
+            validTests,
+            Collections.emptyList(),
+            Collections.emptyList(),
+            false,
+            Collections.singletonList(
+                new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, OtherTests.class.getCanonicalName())));
+        GameTestSelection binaryName = GameTestSelection.from(
+            validTests,
+            Collections.emptyList(),
+            Collections.emptyList(),
+            false,
+            Collections.singletonList(new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, OtherTests.class.getName())));
+
+        assertEquals(Collections.singletonList(dummy), simpleName.selectedTests());
+        assertEquals(Collections.singletonList(other), canonicalName.selectedTests());
+        assertEquals(Collections.singletonList(other), binaryName.selectedTests());
+    }
+
+    @Test
+    public void testIdPrefixSelectsEveryMatchingMethod() throws Exception {
+        List<GameTestDefinition> validTests = Arrays.asList(
+            definition("moda:IOPortTests.fillModeImports"),
+            definition("moda:IOPortTests.fillModeExports"),
+            definition("moda:IOPortTests.emptyModeExports"),
+            definition("moda:NetworkCoreTests.networkBoots"));
+
+        List<GameTestDefinition> selected = GameTestSelection
+            .matchingValidTests(validTests, "moda:IOPortTests.fillMode");
+
+        assertEquals(validTests.subList(0, 2), selected);
+    }
+
+    @Test
     public void unmatchedSelectorsDescribeWhyNothingValidMatched() throws Exception {
         Method method = DummyTests.class.getMethod("test", GameTestHelper.class);
         List<GameTestDefinition> validTests = Collections.singletonList(definition("moda:Suite.first"));
@@ -57,9 +102,9 @@ public class GameTestSelectionTest {
         List<DuplicateTestId> duplicateIds = Collections
             .singletonList(new DuplicateTestId("dupe:Suite.same", Collections.singletonList(method)));
         List<TestSelector> selectors = Arrays.asList(
-            new TestSelector(SelectorType.NAMESPACE, "missing"),
-            new TestSelector(SelectorType.EXACT_TEST_ID, "bad:Broken.test"),
-            new TestSelector(SelectorType.NAMESPACE, "dupe"));
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "missing"),
+            new TestSelector(SelectorType.TEST_ID_PREFIX, "bad:Broken.test"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "dupe"));
 
         GameTestSelection selection = GameTestSelection.from(validTests, invalidTests, duplicateIds, false, selectors);
 
@@ -86,10 +131,37 @@ public class GameTestSelectionTest {
     }
 
     @Test
+    public void holderSelectorsDiagnoseInvalidAndDuplicateDefinitions() throws Exception {
+        Method invalidMethod = InvalidHolderTests.class.getMethod("test", GameTestHelper.class);
+        Method duplicateMethod = DuplicateHolderTests.class.getMethod("test", GameTestHelper.class);
+        List<InvalidTestDefinition> invalidTests = Collections.singletonList(
+            new InvalidTestDefinition("moda:InvalidHolderTests.test", invalidMethod, Collections.emptyList()));
+        List<DuplicateTestId> duplicateIds = Collections.singletonList(
+            new DuplicateTestId("moda:DuplicateHolderTests.test", Collections.singletonList(duplicateMethod)));
+        List<TestSelector> selectors = Arrays.asList(
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "InvalidHolderTests"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, DuplicateHolderTests.class.getName()));
+
+        GameTestSelection selection = GameTestSelection
+            .from(Collections.emptyList(), invalidTests, duplicateIds, false, selectors);
+
+        assertEquals(
+            "INVALID_TEST_SELECTION",
+            selection.infrastructureIssues()
+                .get(0)
+                .kind());
+        assertEquals(
+            "DUPLICATE_TEST_SELECTION",
+            selection.infrastructureIssues()
+                .get(1)
+                .kind());
+    }
+
+    @Test
     public void repeatedUnmatchedSelectorsEmitOneIssue() throws Exception {
         List<TestSelector> selectors = Arrays.asList(
-            new TestSelector(SelectorType.NAMESPACE, "missing"),
-            new TestSelector(SelectorType.NAMESPACE, "missing"));
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "missing"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "missing"));
 
         GameTestSelection selection = GameTestSelection
             .from(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), false, selectors);
@@ -110,17 +182,29 @@ public class GameTestSelectionTest {
     }
 
     private static GameTestDefinition definition(String testId) throws Exception {
-        return new GameTestDefinition(
-            testId,
-            DummyTests.class.getMethod("test", GameTestHelper.class),
-            "",
-            20,
-            "",
-            true,
-            0);
+        return definition(testId, DummyTests.class);
+    }
+
+    private static GameTestDefinition definition(String testId, Class<?> holderClass) throws Exception {
+        return new GameTestDefinition(testId, holderClass.getMethod("test", GameTestHelper.class), "", 20, "", true, 0);
     }
 
     public static final class DummyTests {
+
+        public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class OtherTests {
+
+        public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class InvalidHolderTests {
+
+        public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class DuplicateHolderTests {
 
         public static void test(GameTestHelper helper) {}
     }
