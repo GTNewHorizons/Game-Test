@@ -19,4 +19,10 @@ public @interface GameTestHolder {
 
     /** Optional prefix applied to template names for this holder. */
     String templatePrefix() default "";
+
+    /**
+     * Mod ids that must be loaded before this holder is inspected. When any listed mod is absent,
+     * every {@link GameTest} in the holder is reported as skipped without loading the holder class.
+     */
+    String[] requiredMods() default {};
 }

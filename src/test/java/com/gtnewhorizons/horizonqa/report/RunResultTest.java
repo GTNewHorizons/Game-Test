@@ -70,6 +70,7 @@ public class RunResultTest {
         assertEquals(0, result.passed());
         assertEquals(0, result.failed());
         assertEquals(0, result.timedOut());
+        assertEquals(0, result.skipped());
         assertEquals(0, result.incomplete());
         assertEquals(0, result.infrastructureErrors());
         assertEquals(0, result.requiredFailures());
@@ -92,6 +93,22 @@ public class RunResultTest {
         assertEquals("passed", result.status());
         assertEquals(2, result.optionalFailures());
         assertEquals(0, result.requiredFailures());
+    }
+
+    @Test
+    public void skippedTestsDoNotFailOrBecomeIncomplete() {
+        RunResult result = RunResult.completedCases(
+            "ci",
+            Collections.singletonList(resultCase("mod:Suite.skipped", CaseResult.Status.SKIPPED, true)),
+            Collections.emptyList(),
+            "TEST.xml");
+
+        assertEquals(0, result.exitCode());
+        assertEquals("passed", result.status());
+        assertEquals(1, result.skipped());
+        assertEquals(0, result.incomplete());
+        assertEquals(0, result.infrastructureErrors());
+        assertEquals(1, result.junitSkipped());
     }
 
     @Test

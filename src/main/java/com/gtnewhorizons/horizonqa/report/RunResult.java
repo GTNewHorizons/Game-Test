@@ -97,6 +97,14 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
         return count;
     }
 
+    public long skipped() {
+        long count = 0;
+        for (CaseResult result : cases) {
+            if (result.skipped()) count++;
+        }
+        return count;
+    }
+
     public long incomplete() {
         long count = 0;
         for (CaseResult result : cases) {
@@ -174,7 +182,7 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
     }
 
     public long junitSkipped() {
-        return optionalFailed() + optionalTimedOut() + skippedBySetup();
+        return optionalFailed() + optionalTimedOut() + skippedBySetup() + skipped();
     }
 
     public boolean passedRun() {

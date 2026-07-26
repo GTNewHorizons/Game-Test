@@ -42,7 +42,7 @@ Read it like a flight recorder: the fixture formed, an input was inserted, and v
 | Wrong output count, recipe trace otherwise clean                    | Recipe definition or assertion semantics                  | Inspect the recipe map and use `ItemMatcher.count(n)` for fluent bus quantity checks |
 | `<error>` instead of `<failure>`                                    | Infrastructure: template load, cleanup, config, report path | Read `issues[]` in `horizonqa-result.json`; exit code is `2`              |
 | `IsolationViolation`                                                | This test placed a GregTech tile in the protected outer margin | Use the reported position and add cleanup or keep mutations inside the cell |
-| `<skipped>` on a test you expected to run                           | `required = false` test failed, or it was blocked by a setup issue | Check `tests[]` for `blockedByIssueId`; reconsider whether it should be optional |
+| `<skipped>` on a test you expected to run                           | Missing `requiredMods`, unmet runtime assumption, optional failure, or setup block | Check `skipReason`, `skipType`, and `blockedByIssueId` in `tests[]` |
 
 ## 3. Reproduce in-game
 

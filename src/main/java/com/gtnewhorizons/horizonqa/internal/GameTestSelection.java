@@ -39,7 +39,7 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         for (TestSelector selector : selectors) {
             boolean matchedValid = false;
             for (GameTestDefinition def : validTests) {
-                if (matches(selector, def.getTestId(), def.getMethod())) {
+                if (matches(selector, def.getTestId(), def.getHolderClassName())) {
                     matchedValid = true;
                     selectedIds.add(def.getTestId());
                 }
@@ -74,7 +74,7 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         TestSelector selector = new TestSelector(type, selectorValue);
         List<GameTestDefinition> selected = new ArrayList<>();
         for (GameTestDefinition def : validTests) {
-            if (matches(selector, def.getTestId(), def.getMethod())) {
+            if (matches(selector, def.getTestId(), def.getHolderClassName())) {
                 selected.add(def);
             }
         }
@@ -89,21 +89,30 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
     }
 
     private static boolean matches(TestSelector selector, String testId, Method holderMethod) {
+        return matches(
+            selector,
+            testId,
+            holderMethod == null ? ""
+                : holderMethod.getDeclaringClass()
+                    .getName());
+    }
+
+    private static boolean matches(TestSelector selector, String testId, String holderClassName) {
         if (selector.type() == SelectorType.TEST_ID_PREFIX) {
             return testId.startsWith(selector.value());
         }
         if (testId.startsWith(selector.value() + ":")) {
             return true;
         }
-        if (holderMethod == null) {
+        if (holderClassName == null || holderClassName.isEmpty()) {
             return false;
         }
-        Class<?> holderClass = holderMethod.getDeclaringClass();
-        String canonicalName = holderClass.getCanonicalName();
-        return holderClass.getSimpleName()
-            .equals(selector.value()) || canonicalName != null && canonicalName.equals(selector.value())
-            || holderClass.getName()
-                .equals(selector.value());
+        int nested = holderClassName.lastIndexOf('$');
+        int separator = nested >= 0 ? nested : holderClassName.lastIndexOf('.');
+        String simpleName = separator >= 0 ? holderClassName.substring(separator + 1) : holderClassName;
+        String canonicalName = holderClassName.replace('$', '.');
+        return simpleName.equals(selector.value()) || canonicalName.equals(selector.value())
+            || holderClassName.equals(selector.value());
     }
 
     private static boolean matchesInvalid(TestSelector selector, List<InvalidTestDefinition> invalidTests) {
@@ -117,12 +126,11 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
 
     private static boolean matchesDuplicate(TestSelector selector, List<DuplicateTestId> duplicateIds) {
         for (DuplicateTestId duplicateId : duplicateIds) {
-            if (selector.type() == SelectorType.TEST_ID_PREFIX && duplicateId.testId()
-                .startsWith(selector.value())) {
+            if (matches(selector, duplicateId.testId(), "")) {
                 return true;
             }
-            for (Method method : duplicateId.methods()) {
-                if (matches(selector, duplicateId.testId(), method)) {
+            for (String holderClassName : duplicateId.holderClassNames()) {
+                if (matches(selector, duplicateId.testId(), holderClassName)) {
                     return true;
                 }
             }

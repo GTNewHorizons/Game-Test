@@ -149,6 +149,22 @@ public class GameTestHelper {
     }
 
     /**
+     * Skip this test when {@code condition} is {@code false}. The reason is included in machine-readable
+     * reports. Like assertion helpers, a failed assumption aborts the current test callback immediately.
+     */
+    public void assumeTrue(boolean condition, String reason) {
+        if (!condition) throw new GameTestAssumptionException(reason);
+    }
+
+    /**
+     * Skip this test when {@code condition} is {@code true}. The reason is included in machine-readable
+     * reports. Like assertion helpers, a failed assumption aborts the current test callback immediately.
+     */
+    public void assumeFalse(boolean condition, String reason) {
+        if (condition) throw new GameTestAssumptionException(reason);
+    }
+
+    /**
      * Immediately fail this test with {@code message}. Throws {@link GameTestAssertException} so that
      * any enclosing {@code thenExecute} lambda propagates the failure correctly.
      */

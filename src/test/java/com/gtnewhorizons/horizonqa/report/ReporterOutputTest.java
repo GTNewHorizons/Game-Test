@@ -143,7 +143,7 @@ public class ReporterOutputTest {
         StatusJsonReporter.write(result, output);
 
         String json = read(output);
-        assertTrue(json.contains("\"schemaVersion\": 1"));
+        assertTrue(json.contains("\"schemaVersion\": 2"));
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
         assertTrue(json.contains("\"configuration\": {"));
@@ -249,6 +249,35 @@ public class ReporterOutputTest {
     }
 
     @Test
+    public void intentionalSkipsIncludeReasonInJunitAndStatusJson() throws Exception {
+        CaseResult skipped = CaseResult.skipped(
+            templateDefinition("mod:Suite.fluidCompatibility", ""),
+            "AE2 Fluid Crafting is not loaded",
+            CaseResult.MISSING_REQUIRED_MOD);
+        RunResult result = RunResult
+            .completedCases("ci", Collections.singletonList(skipped), Collections.emptyList(), "TEST.xml");
+
+        assertEquals(0, result.exitCode());
+        assertEquals(1, result.skipped());
+        assertEquals(1, result.junitSkipped());
+
+        File xmlOutput = temporaryFolder.newFile("intentional-skip.xml");
+        JUnitXmlReporter.write(result, xmlOutput);
+        String xml = read(xmlOutput);
+        assertTrue(xml.contains("tests=\"1\" failures=\"0\" errors=\"0\" skipped=\"1\""));
+        assertTrue(
+            xml.contains("<skipped message=\"AE2 Fluid Crafting is not loaded\" type=\"MISSING_REQUIRED_MOD\"/>"));
+
+        File jsonOutput = temporaryFolder.newFile("intentional-skip.json");
+        StatusJsonReporter.write(result, jsonOutput);
+        String json = read(jsonOutput);
+        assertTrue(json.contains("\"status\": \"skipped\""));
+        assertTrue(json.contains("\"skipReason\": \"AE2 Fluid Crafting is not loaded\""));
+        assertTrue(json.contains("\"skipType\": \"MISSING_REQUIRED_MOD\""));
+        assertFalse(json.contains("\"failure\": {"));
+    }
+
+    @Test
     public void statusJsonReportsPassedOptionalFailureRunsAsPassed() throws Exception {
         RunResult result = RunResult.completedCases(
             "ci",
@@ -302,7 +331,8 @@ public class ReporterOutputTest {
 
         assertEquals(
             "HorizonQA RESULT status=ERROR exitCode=2 mode=ci passed=1 requiredFailed=1"
-                + " requiredTimedOut=1 optionalFailed=1 optionalTimedOut=1 skippedBySetup=1 infrastructureErrors=2",
+                + " requiredTimedOut=1 optionalFailed=1 optionalTimedOut=1 skipped=0 skippedBySetup=1"
+                + " infrastructureErrors=2",
             ConsoleReporter.summaryLine(errorResult));
         assertEquals("RUN ERROR", ConsoleReporter.runLine(errorResult));
 

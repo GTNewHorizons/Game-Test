@@ -80,6 +80,26 @@ public class GameTestSelectionTest {
     }
 
     @Test
+    public void holderSelectorsMatchDiscoverySkippedDefinitionsWithoutLoadingHolder() {
+        GameTestDefinition skipped = GameTestDefinition.skippedAtDiscovery(
+            "moda:OptionalTests.test",
+            "moda.compat.OptionalTests",
+            "",
+            20,
+            "",
+            true,
+            0,
+            "Required mod is not loaded: optionalmod");
+
+        assertEquals(
+            Collections.singletonList(skipped),
+            GameTestSelection.matchingValidTests(Collections.singletonList(skipped), "OptionalTests"));
+        assertEquals(
+            Collections.singletonList(skipped),
+            GameTestSelection.matchingValidTests(Collections.singletonList(skipped), "moda.compat.OptionalTests"));
+    }
+
+    @Test
     public void testIdPrefixSelectsEveryMatchingMethod() throws Exception {
         List<GameTestDefinition> validTests = Arrays.asList(
             definition("moda:IOPortTests.fillModeImports"),
@@ -155,6 +175,33 @@ public class GameTestSelectionTest {
             selection.infrastructureIssues()
                 .get(1)
                 .kind());
+    }
+
+    @Test
+    public void namespaceAndHolderSelectorsDiagnoseAllGatedDuplicates() {
+        DuplicateTestId duplicate = new DuplicateTestId(
+            "moda:OptionalTests.test",
+            Collections.emptyList(),
+            Arrays.asList("compat.first.OptionalTests", "compat.second.OptionalTests"));
+        List<TestSelector> selectors = Arrays.asList(
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "moda"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "OptionalTests"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "compat.second.OptionalTests"));
+
+        GameTestSelection selection = GameTestSelection.from(
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.singletonList(duplicate),
+            false,
+            selectors);
+
+        assertEquals(
+            3,
+            selection.infrastructureIssues()
+                .size());
+        for (GameTestSelection.SelectionIssue issue : selection.infrastructureIssues()) {
+            assertEquals("DUPLICATE_TEST_SELECTION", issue.kind());
+        }
     }
 
     @Test

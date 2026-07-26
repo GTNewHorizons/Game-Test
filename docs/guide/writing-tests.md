@@ -83,6 +83,35 @@ Tests marked `required = false` may fail or time out without failing the overall
 
     Use `required = false` for a time-limited quarantine, experimental coverage, or an environment-specific check. Keep the failure visible and remove the exemption when it should gate the build.
 
+## Optional mods and runtime assumptions
+
+Put tests that directly reference an optional mod in their own holder and declare the dependency there:
+
+```java
+@GameTestHolder(value = "mymod", requiredMods = "optionalmod")
+public class OptionalModCompatibilityTests {
+
+    @GameTest(timeoutTicks = 40)
+    public static void transfersFluid(GameTestHelper helper) {
+        // Safe to reference optionalmod classes: the holder is not loaded when it is absent.
+    }
+}
+```
+
+Discovery checks `requiredMods` from Forge ASM metadata before loading the holder. If a required mod is missing, selected tests in that holder are skipped without template placement, batch hooks, or method execution. An exact `horizonqa.tests` selector still produces a reported skipped case with the missing-mod reason.
+
+Use a runtime assumption when the precondition depends on live state rather than classpath presence:
+
+```java
+helper.assumeTrue(
+    FluidRegistry.isFluidRegistered("molten.example"),
+    "molten.example must be registered for this compatibility scenario");
+```
+
+`assumeTrue` and `assumeFalse` abort the current method, sequence action, or tick callback when the assumption is not met. The test is skipped, its reason appears in JUnit XML and status JSON, and the run remains successful unless cleanup fails. Cleanup callbacks registered before the assumption still run.
+
+An assumption is different from `required = false`: an optional test still executes and may fail, while an unmet assumption deliberately does not exercise the remaining test logic.
+
 ## Rotation
 
 `rotation` on `@GameTest` is `0-3`: none, 90°, 180°, 270° clockwise around Y, matching structure placement conventions. Setting it to a non-zero value is the cheapest way to catch templates that quietly hardcoded a facing.

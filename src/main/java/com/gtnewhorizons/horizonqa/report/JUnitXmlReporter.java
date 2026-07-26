@@ -67,7 +67,7 @@ public final class JUnitXmlReporter {
             writeFailure(pw, resultCase);
         } else if (resultCase.infrastructureError()) {
             writeError(pw, resultCase);
-        } else if (resultCase.failedOptionalCase() || resultCase.skippedBySetup()) {
+        } else if (resultCase.skipped() || resultCase.failedOptionalCase() || resultCase.skippedBySetup()) {
             writeSkipped(pw, resultCase);
         }
 

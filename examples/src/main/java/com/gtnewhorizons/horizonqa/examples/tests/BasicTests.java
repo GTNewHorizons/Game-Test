@@ -35,6 +35,12 @@ public class BasicTests {
         helper.succeed();
     }
 
+    @GameTest(timeoutTicks = 20)
+    public static void runtimeAssumptionSkip(GameTestHelper helper) {
+        helper.assumeTrue(false, "Example-only runtime capability is unavailable");
+        throw new AssertionError("A failed assumption must abort the test method");
+    }
+
     @GameTest(timeoutTicks = 10, required = false)
     public static void timeoutTest(GameTestHelper helper) {}
 }
