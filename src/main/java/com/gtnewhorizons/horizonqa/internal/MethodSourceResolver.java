@@ -10,7 +10,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.BaseStream;
+import java.util.stream.IntStream;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.GameTestArguments;
 import com.gtnewhorizons.horizonqa.api.annotation.MethodSource;
 
@@ -36,8 +38,7 @@ final class MethodSourceResolver {
         BaseStream<?, ?> stream = source instanceof BaseStream<?, ?> ? (BaseStream<?, ?>) source : null;
         List<ResolvedArguments> resolved = new ArrayList<>();
         Set<String> names = new HashSet<>();
-        MethodSourceException failure = null;
-        try {
+        try (BaseStream<?, ?> ignored = stream) {
             Iterator<?> iterator = createIterator(source, sourceName);
             int index = 0;
             while (iterator.hasNext()) {
@@ -53,38 +54,15 @@ final class MethodSourceResolver {
                 resolved.add(invocation);
                 index++;
             }
-        } catch (MethodSourceException e) {
-            failure = e;
-        } catch (RuntimeException | Error e) {
-            rethrowIfFatal(e);
-            failure = new MethodSourceException(
-                "method source '" + sourceName + "' failed while producing arguments: " + describe(e),
-                e);
-        } finally {
-            if (stream != null) {
-                try {
-                    stream.close();
-                } catch (RuntimeException | Error e) {
-                    rethrowIfFatal(e);
-                    MethodSourceException closeFailure = new MethodSourceException(
-                        "method source '" + sourceName + "' failed while closing its stream: " + describe(e),
-                        e);
-                    if (failure == null) {
-                        failure = closeFailure;
-                    } else {
-                        failure.addSuppressed(closeFailure);
-                    }
-                }
+            if (resolved.isEmpty()) {
+                throw new MethodSourceException("method source '" + sourceName + "' produced no arguments");
             }
+            return resolved;
+        } catch (MethodSourceException e) {
+            throw e;
+        } catch (RuntimeException | Error e) {
+            throw wrapFailure("method source '" + sourceName + "' failed while producing arguments: ", e);
         }
-
-        if (failure != null) {
-            throw failure;
-        }
-        if (resolved.isEmpty()) {
-            throw new MethodSourceException("method source '" + sourceName + "' produced no arguments");
-        }
-        return resolved;
     }
 
     private static Method findProvider(Method testMethod, String sourceName) throws MethodSourceException {
@@ -126,20 +104,9 @@ final class MethodSourceResolver {
             return provider.invoke(null);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause() == null ? e : e.getCause();
-            rethrowIfFatal(cause);
-            throw new MethodSourceException(
-                "method source '" + provider.getName() + "' threw " + describe(cause),
-                cause);
-        } catch (ReflectiveOperationException | RuntimeException e) {
-            rethrowIfFatal(e);
-            throw new MethodSourceException(
-                "could not invoke method source '" + provider.getName() + "': " + describe(e),
-                e);
-        } catch (Error e) {
-            rethrowIfFatal(e);
-            throw new MethodSourceException(
-                "could not invoke method source '" + provider.getName() + "': " + describe(e),
-                e);
+            throw wrapFailure("method source '" + provider.getName() + "' threw ", cause);
+        } catch (ReflectiveOperationException | RuntimeException | Error e) {
+            throw wrapFailure("could not invoke method source '" + provider.getName() + "': ", e);
         }
     }
 
@@ -149,10 +116,7 @@ final class MethodSourceResolver {
         } catch (MethodSourceException e) {
             throw e;
         } catch (RuntimeException | Error e) {
-            rethrowIfFatal(e);
-            throw new MethodSourceException(
-                "method source '" + sourceName + "' failed while creating its iterator: " + describe(e),
-                e);
+            throw wrapFailure("method source '" + sourceName + "' failed while creating its iterator: ", e);
         }
     }
 
@@ -168,7 +132,9 @@ final class MethodSourceResolver {
         }
         if (source.getClass()
             .isArray()) {
-            return new ArrayIterator(source);
+            return IntStream.range(0, Array.getLength(source))
+                .mapToObj(index -> Array.get(source, index))
+                .iterator();
         }
         throw new MethodSourceException(
             "method source '" + sourceName
@@ -270,6 +236,11 @@ final class MethodSourceResolver {
             .getName() + (message == null || message.isEmpty() ? "" : ": " + message);
     }
 
+    private static MethodSourceException wrapFailure(String context, Throwable failure) {
+        rethrowIfFatal(failure);
+        return new MethodSourceException(context + describe(failure), failure);
+    }
+
     private static void rethrowIfFatal(Throwable failure) {
         if (failure instanceof ThreadDeath death) {
             throw death;
@@ -279,30 +250,8 @@ final class MethodSourceResolver {
         }
     }
 
-    static final class ResolvedArguments {
-
-        private final String name;
-        private final int ordinal;
-        private final Object[] arguments;
-
-        ResolvedArguments(String name, int ordinal, Object[] arguments) {
-            this.name = name;
-            this.ordinal = ordinal;
-            this.arguments = arguments.clone();
-        }
-
-        String name() {
-            return name;
-        }
-
-        int ordinal() {
-            return ordinal;
-        }
-
-        Object[] arguments() {
-            return arguments.clone();
-        }
-    }
+    @Desugar
+    record ResolvedArguments(String name, int ordinal, Object[] arguments) {}
 
     static final class MethodSourceException extends Exception {
 
@@ -315,25 +264,4 @@ final class MethodSourceResolver {
         }
     }
 
-    private static final class ArrayIterator implements Iterator<Object> {
-
-        private final Object array;
-        private final int length;
-        private int index;
-
-        ArrayIterator(Object array) {
-            this.array = array;
-            length = Array.getLength(array);
-        }
-
-        @Override
-        public boolean hasNext() {
-            return index < length;
-        }
-
-        @Override
-        public Object next() {
-            return Array.get(array, index++);
-        }
-    }
 }

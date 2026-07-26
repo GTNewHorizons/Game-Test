@@ -146,12 +146,8 @@ public class MethodSourceResolverTest {
             error.getMessage()
                 .contains("every row must be GameTestArguments"));
         assertEquals(1, error.getSuppressed().length);
-        assertTrue(error.getSuppressed()[0] instanceof MethodSourceException);
-        assertTrue(error.getSuppressed()[0].getCause() instanceof IllegalStateException);
-        assertEquals(
-            "close failed",
-            error.getSuppressed()[0].getCause()
-                .getMessage());
+        assertTrue(error.getSuppressed()[0] instanceof IllegalStateException);
+        assertEquals("close failed", error.getSuppressed()[0].getMessage());
     }
 
     @Test

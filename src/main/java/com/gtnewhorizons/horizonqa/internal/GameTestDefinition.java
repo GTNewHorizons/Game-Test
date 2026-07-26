@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.internal;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 
@@ -30,11 +31,6 @@ public final class GameTestDefinition {
 
     public GameTestDefinition(String testId, Method method, String templateName, int timeoutTicks, String batch,
         boolean required, int rotation) {
-        this(testId, method, templateName, timeoutTicks, batch, required, rotation, new Object[0]);
-    }
-
-    public GameTestDefinition(String testId, Method method, String templateName, int timeoutTicks, String batch,
-        boolean required, int rotation, Object[] arguments) {
         this(
             testId,
             "",
@@ -50,7 +46,7 @@ public final class GameTestDefinition {
                     .getName(),
             "",
             false,
-            arguments);
+            new Object[0]);
     }
 
     private GameTestDefinition(String baseTestId, String caseName, int caseOrdinal, Method method, String templateName,
@@ -74,50 +70,64 @@ public final class GameTestDefinition {
 
     public static GameTestDefinition parameterized(String baseTestId, String caseName, int caseOrdinal, Method method,
         String templateName, int timeoutTicks, String batch, boolean required, int rotation, Object[] arguments) {
-        if (caseName == null || caseName.isEmpty()) {
+        return new GameTestDefinition(baseTestId, method, templateName, timeoutTicks, batch, required, rotation)
+            .withArguments(caseName, caseOrdinal, arguments);
+    }
+
+    GameTestDefinition withArguments(String newCaseName, int newCaseOrdinal, Object[] newArguments) {
+        if (newCaseName == null || newCaseName.isEmpty()) {
             throw new IllegalArgumentException("caseName must not be empty");
         }
-        if (caseOrdinal < 0) {
+        if (newCaseOrdinal < 0) {
             throw new IllegalArgumentException("caseOrdinal must be non-negative");
         }
         return new GameTestDefinition(
             baseTestId,
-            caseName,
-            caseOrdinal,
+            newCaseName,
+            newCaseOrdinal,
             method,
             templateName,
             timeoutTicks,
             batch,
             required,
             rotation,
-            method == null ? ""
-                : method.getDeclaringClass()
-                    .getName(),
-            "",
-            false,
-            arguments);
+            holderClassName,
+            discoverySkipReason,
+            unresolvedCaseFamily,
+            newArguments);
     }
 
     public static GameTestDefinition skippedAtDiscovery(String testId, String holderClassName, String templateName,
         int timeoutTicks, String batch, boolean required, int rotation, String skipReason) {
-        return new GameTestDefinition(
+        return skippedAtDiscovery(
             testId,
-            "",
-            0,
-            null,
+            holderClassName,
             templateName,
             timeoutTicks,
             batch,
             required,
             rotation,
-            holderClassName,
             skipReason,
-            false,
-            new Object[0]);
+            false);
     }
 
     public static GameTestDefinition parameterizedSkippedAtDiscovery(String testId, String holderClassName,
         String templateName, int timeoutTicks, String batch, boolean required, int rotation, String skipReason) {
+        return skippedAtDiscovery(
+            testId,
+            holderClassName,
+            templateName,
+            timeoutTicks,
+            batch,
+            required,
+            rotation,
+            skipReason,
+            true);
+    }
+
+    private static GameTestDefinition skippedAtDiscovery(String testId, String holderClassName, String templateName,
+        int timeoutTicks, String batch, boolean required, int rotation, String skipReason,
+        boolean unresolvedCaseFamily) {
         return new GameTestDefinition(
             testId,
             "",
@@ -130,7 +140,7 @@ public final class GameTestDefinition {
             rotation,
             holderClassName,
             skipReason,
-            true,
+            unresolvedCaseFamily,
             new Object[0]);
     }
 
@@ -261,65 +271,12 @@ public final class GameTestDefinition {
     }
 
     private static String summarizeArguments(Object[] values) {
-        StringBuilder summary = new StringBuilder().append('[');
-        IdentityHashMap<Object, Boolean> arrays = new IdentityHashMap<>();
-        arrays.put(values, Boolean.TRUE);
-        for (int i = 0; i < values.length; i++) {
-            if (i > 0) summary.append(", ");
-            appendSummary(summary, values[i], arrays);
-        }
-        return summary.append(']')
-            .toString();
-    }
-
-    private static void appendSummary(StringBuilder summary, Object value, IdentityHashMap<Object, Boolean> arrays) {
-        if (value == null) {
-            summary.append("null");
-            return;
-        }
-        Class<?> type = value.getClass();
-        if (type.isArray()) {
-            if (arrays.put(value, Boolean.TRUE) != null) {
-                summary.append("[...]");
-                return;
-            }
-            summary.append('[');
-            int length = Array.getLength(value);
-            for (int i = 0; i < length; i++) {
-                if (i > 0) summary.append(", ");
-                appendSummary(summary, Array.get(value, i), arrays);
-            }
-            summary.append(']');
-            arrays.remove(value);
-            return;
-        }
-        if (value instanceof String || value instanceof Byte
-            || value instanceof Short
-            || value instanceof Integer
-            || value instanceof Long
-            || value instanceof Float
-            || value instanceof Double
-            || value instanceof Boolean
-            || value instanceof Character) {
-            summary.append(value);
-            return;
-        }
-        if (value instanceof Enum<?>enumeration) {
-            summary.append(enumeration.name());
-            return;
-        }
-        if (value instanceof Class<?>argumentClass) {
-            summary.append(argumentClass.getName());
-            return;
-        }
         try {
-            summary.append(String.valueOf(value));
-        } catch (ThreadDeath | OutOfMemoryError fatal) {
+            return Arrays.deepToString(values);
+        } catch (ThreadDeath | VirtualMachineError fatal) {
             throw fatal;
         } catch (Throwable ignored) {
-            summary.append('<')
-                .append(type.getName())
-                .append('>');
+            return "[<unprintable arguments>]";
         }
     }
 

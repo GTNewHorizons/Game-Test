@@ -3,7 +3,6 @@ package com.gtnewhorizons.horizonqa.internal;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -48,7 +47,7 @@ public class GameTestDefinitionTest {
     }
 
     @Test
-    public void argumentSummaryDoesNotInvokeArbitraryToStringMethods() {
+    public void argumentSummaryContainsThrowingToStringMethods() {
         Object unsafe = new Object() {
 
             @Override
@@ -59,8 +58,7 @@ public class GameTestDefinitionTest {
 
         String summary = definition(new Object[] { unsafe }).getArgumentSummary();
 
-        assertTrue(summary.startsWith("[<"));
-        assertTrue(summary.endsWith(">]"));
+        assertEquals("[<unprintable arguments>]", summary);
     }
 
     private static GameTestDefinition definition(Object[] arguments) {

@@ -13,10 +13,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import com.github.bsideup.jabel.Desugar;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
@@ -154,8 +154,8 @@ public final class GameTestRegistry {
             String methodName = methodName(testData.getObjectName());
             String testId = namespace + ":" + simpleClassName(className) + "." + methodName;
             boolean parameterized = hasMethodAnnotation(methodSourceAnnotations, className, testData.getObjectName());
-            collector.testOrigins
-                .add(TestOrigin.unloaded(testId, className, className + "#" + testData.getObjectName(), parameterized));
+            collector.addTestOrigin(
+                TestOrigin.unloaded(testId, className, className + "#" + testData.getObjectName(), parameterized));
         }
     }
 
@@ -168,7 +168,7 @@ public final class GameTestRegistry {
             if (method.getAnnotation(GameTest.class) == null) {
                 continue;
             }
-            collector.testOrigins.add(
+            collector.addTestOrigin(
                 TestOrigin.loaded(
                     intendedTestId(holderAnn.value(), holderClass, method),
                     method,
@@ -436,17 +436,17 @@ public final class GameTestRegistry {
             return;
         }
 
+        String resolvedTemplate = resolveTemplate(namespace, templatePrefix, testAnn.template(), method.getName());
+        GameTestDefinition baseDefinition = new GameTestDefinition(
+            intendedTestId,
+            method,
+            resolvedTemplate,
+            testAnn.timeoutTicks(),
+            testAnn.batch(),
+            testAnn.required(),
+            testAnn.rotation());
         if (methodSource == null) {
-            String resolvedTemplate = resolveTemplate(namespace, templatePrefix, testAnn.template(), method.getName());
-            GameTestDefinition def = new GameTestDefinition(
-                intendedTestId,
-                method,
-                resolvedTemplate,
-                testAnn.timeoutTicks(),
-                testAnn.batch(),
-                testAnn.required(),
-                testAnn.rotation());
-            collector.validTests.add(def);
+            collector.validTests.add(baseDefinition);
             LOG.debug("Registered test: {}", intendedTestId);
             return;
         }
@@ -455,57 +455,48 @@ public final class GameTestRegistry {
         try {
             invocations = MethodSourceResolver.resolve(method, methodSource);
         } catch (MethodSourceException e) {
-            DiscoveryIssue issue = issue(
-                "discovery:invalidTest:" + methodRef(method) + ":methodSource",
-                KIND_DISCOVERY_ERROR,
-                "Skipping @GameTest method '" + method
-                    .getName() + "' in '" + clazz.getName() + "': " + e.getMessage() + ".");
-            collector.issues.add(issue);
-            collector.invalidTests
-                .add(new InvalidTestDefinition(intendedTestId, method, Collections.singletonList(issue)));
-            LOG.warn(issue.message(), e);
+            rejectMethodSource(intendedTestId, method, e.getMessage(), e, collector);
             return;
         }
 
-        String resolvedTemplate = resolveTemplate(namespace, templatePrefix, testAnn.template(), method.getName());
         List<GameTestDefinition> expanded = new ArrayList<>(invocations.size());
         try {
             for (ResolvedArguments invocation : invocations) {
-                expanded.add(
-                    GameTestDefinition.parameterized(
-                        intendedTestId,
-                        invocation.name(),
-                        invocation.ordinal(),
-                        method,
-                        resolvedTemplate,
-                        testAnn.timeoutTicks(),
-                        testAnn.batch(),
-                        testAnn.required(),
-                        testAnn.rotation(),
-                        invocation.arguments()));
+                expanded
+                    .add(baseDefinition.withArguments(invocation.name(), invocation.ordinal(), invocation.arguments()));
             }
         } catch (RuntimeException | LinkageError e) {
-            DiscoveryIssue issue = issue(
-                "discovery:invalidTest:" + methodRef(method) + ":methodSource",
-                KIND_DISCOVERY_ERROR,
-                "Skipping @GameTest method '" + method.getName()
-                    + "' in '"
-                    + clazz.getName()
-                    + "': failed while materializing supplied arguments: "
-                    + e.getClass()
-                        .getName()
-                    + (e.getMessage() == null ? "" : ": " + e.getMessage())
-                    + ".");
-            collector.issues.add(issue);
-            collector.invalidTests
-                .add(new InvalidTestDefinition(intendedTestId, method, Collections.singletonList(issue)));
-            LOG.warn(issue.message(), e);
+            String detail = e.getClass()
+                .getName() + (e.getMessage() == null ? "" : ": " + e.getMessage());
+            rejectMethodSource(
+                intendedTestId,
+                method,
+                "failed while materializing supplied arguments: " + detail,
+                e,
+                collector);
             return;
         }
         collector.validTests.addAll(expanded);
         for (GameTestDefinition def : expanded) {
             LOG.debug("Registered test: {}", def.getTestId());
         }
+    }
+
+    private static void rejectMethodSource(String intendedTestId, Method method, String reason, Throwable failure,
+        DiscoveryCollector collector) {
+        DiscoveryIssue issue = issue(
+            "discovery:invalidTest:" + methodRef(method) + ":methodSource",
+            KIND_DISCOVERY_ERROR,
+            "Skipping @GameTest method '" + method.getName()
+                + "' in '"
+                + method.getDeclaringClass()
+                    .getName()
+                + "': "
+                + reason
+                + ".");
+        collector.issues.add(issue);
+        collector.invalidTests.add(new InvalidTestDefinition(intendedTestId, method, Collections.singletonList(issue)));
+        LOG.warn(issue.message(), failure);
     }
 
     private static void processBatchHook(Method method, HookPhase phase, String batch, DiscoveryIssue namespaceIssue,
@@ -728,14 +719,8 @@ public final class GameTestRegistry {
     }
 
     private static Set<String> findDuplicates(DiscoveryCollector collector) {
-        Map<String, List<TestOrigin>> byId = new LinkedHashMap<>();
-        for (TestOrigin origin : collector.testOrigins) {
-            byId.computeIfAbsent(origin.testId, k -> new ArrayList<>())
-                .add(origin);
-        }
-
         Set<String> duplicateIds = new HashSet<>();
-        for (Map.Entry<String, List<TestOrigin>> entry : byId.entrySet()) {
+        for (Map.Entry<String, List<TestOrigin>> entry : collector.testOriginsById.entrySet()) {
             if (entry.getValue()
                 .size() <= 1) {
                 continue;
@@ -944,35 +929,36 @@ public final class GameTestRegistry {
     private record PendingHolder(ASMDataTable.ASMData holderData, Class<?> holderClass, List<String> missingMods) {
 
         static PendingHolder loaded(Class<?> holderClass) {
-                return new PendingHolder(null, holderClass, Collections.emptyList());
-            }
-
-            static PendingHolder missingMods(ASMDataTable.ASMData holderData, List<String> missingMods) {
-                return new PendingHolder(holderData, null, immutableList(missingMods));
-            }
+            return new PendingHolder(null, holderClass, Collections.emptyList());
         }
+
+        static PendingHolder missingMods(ASMDataTable.ASMData holderData, List<String> missingMods) {
+            return new PendingHolder(holderData, null, immutableList(missingMods));
+        }
+    }
 
     @Desugar
-    private record TestOrigin(String testId, Method method, String holderClassName, String sourceRef, boolean parameterized) {
+    private record TestOrigin(String testId, Method method, String holderClassName, String sourceRef,
+        boolean parameterized) {
 
         static TestOrigin loaded(String testId, Method method, boolean parameterized) {
-                return new TestOrigin(
-                    testId,
-                    method,
-                    method.getDeclaringClass()
-                        .getName(),
-                    methodSignatureRef(method),
-                    parameterized);
-            }
-
-            static TestOrigin unloaded(String testId, String holderClassName, String sourceRef, boolean parameterized) {
-                return new TestOrigin(testId, null, holderClassName, sourceRef, parameterized);
-            }
+            return new TestOrigin(
+                testId,
+                method,
+                method.getDeclaringClass()
+                    .getName(),
+                methodSignatureRef(method),
+                parameterized);
         }
+
+        static TestOrigin unloaded(String testId, String holderClassName, String sourceRef, boolean parameterized) {
+            return new TestOrigin(testId, null, holderClassName, sourceRef, parameterized);
+        }
+    }
 
     private static final class DiscoveryCollector {
 
-        final List<TestOrigin> testOrigins = new ArrayList<>();
+        final Map<String, List<TestOrigin>> testOriginsById = new LinkedHashMap<>();
         final List<GameTestDefinition> validTests = new ArrayList<>();
         final Map<String, List<Method>> beforeBatchMethods = new LinkedHashMap<>();
         final Map<String, List<Method>> afterBatchMethods = new LinkedHashMap<>();
@@ -980,5 +966,10 @@ public final class GameTestRegistry {
         final List<InvalidBatchHook> invalidHooks = new ArrayList<>();
         final List<DuplicateTestId> duplicateIds = new ArrayList<>();
         final List<DiscoveryIssue> issues = new ArrayList<>();
+
+        void addTestOrigin(TestOrigin origin) {
+            testOriginsById.computeIfAbsent(origin.testId, ignored -> new ArrayList<>())
+                .add(origin);
+        }
     }
 }
