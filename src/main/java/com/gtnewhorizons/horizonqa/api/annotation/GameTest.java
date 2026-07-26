@@ -6,7 +6,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a static test method with signature {@code void testName(GameTestHelper helper)}.
+ * Marks a static test method with signature {@code void testName(GameTestHelper helper)}. A method
+ * annotated with {@link MethodSource} may declare supplied parameters after {@code GameTestHelper}.
  */
 @Experimental
 @Retention(RetentionPolicy.RUNTIME)

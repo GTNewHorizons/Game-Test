@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -151,13 +150,14 @@ public class HorizonQACommand extends CommandBase {
             if ("runall".equals(args[0])) {
                 Set<String> selectors = new LinkedHashSet<>();
                 for (GameTestDefinition def : GameTestRegistry.getAllTests()) {
-                    String id = def.getTestId();
+                    String id = def.getBaseTestId();
                     int colon = id.indexOf(':');
                     int dot = id.lastIndexOf('.');
                     if (colon > 0) selectors.add(id.substring(0, colon));
                     selectors.add(def.getHolderSimpleName());
                     if (colon > 0 && dot > colon) selectors.add(id.substring(0, dot));
                     selectors.add(id);
+                    selectors.add(def.getTestId());
                 }
                 return getListOfStringsMatchingLastWord(args, selectors.toArray(new String[0]));
             }
@@ -335,7 +335,7 @@ public class HorizonQACommand extends CommandBase {
             GameTestDefinition def = findDefinition(id);
             if (def != null) defs.add(def);
         }
-        defs.sort(Comparator.comparing(GameTestDefinition::getTestId));
+        defs.sort(GameTestDefinition.executionOrder());
         if (defs.isEmpty()) {
             sender.addChatMessage(
                 new ChatComponentText(

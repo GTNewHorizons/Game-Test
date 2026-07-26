@@ -134,6 +134,7 @@ nav:
     - guide/index.md
     - Author tests:
       - Writing tests: guide/writing-tests.md
+      - Parameterized tests: guide/parameterized-tests.md
       - Structure templates: guide/structures.md
       - GTNH multiblock testing: guide/gtnh-api.md
       - Negative assertions: guide/negative-tests.md

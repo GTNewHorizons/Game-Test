@@ -23,6 +23,7 @@ examples/
     BasicTests.java
     HelperApiTests.java
     MissingModGatedTests.java
+    ParameterizedTests.java
     SequencePhaseTests.java
     StructureTests.java
     GTNHExampleTests.java
@@ -54,6 +55,7 @@ Start with one passing smoke test:
 | `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
 | `MissingModGatedTests` | Discovery-time `requiredMods` skip without loading or executing the holder |
+| `ParameterizedTests`  | Named parameterized-test rows and argument injection                 |
 | `SequencePhaseTests` | START/END tick phases, ordering rules, timeout-boundary behavior   |
 | `StructureTests`     | Template loading and block-level assertions                        |
 | `GTNHExampleTests`   | EBF recipes, fluid hatches, maintenance flags, EU supply, temporary recipes, negative formation |

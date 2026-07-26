@@ -10,10 +10,15 @@ import java.util.Set;
 import com.github.bsideup.jabel.Desugar;
 
 @Desugar
-public record DuplicateTestId(String testId, List<Method> methods, List<String> holderClassNames) {
+public record DuplicateTestId(String testId, List<Method> methods, List<String> holderClassNames,
+    boolean parameterized) {
 
     public DuplicateTestId(String testId, List<Method> methods) {
-        this(testId, methods, holderClassNames(methods));
+        this(testId, methods, holderClassNames(methods), false);
+    }
+
+    public DuplicateTestId(String testId, List<Method> methods, List<String> holderClassNames) {
+        this(testId, methods, holderClassNames, false);
     }
 
     private static List<String> holderClassNames(List<Method> methods) {

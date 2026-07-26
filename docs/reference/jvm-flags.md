@@ -209,7 +209,10 @@ The status JSON is a concise machine-readable summary. Schema version `2` contai
 | `issues`        | Infrastructure/configuration/selection/reporting issues                        |
 | `tests`         | Per-test status and optional failure details                                   |
 
-Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status` is `skipped`.
+Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`.
+Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `parameters`
+for a parameterized case, optional `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status`
+is `skipped`.
 
 ## Exit codes
 

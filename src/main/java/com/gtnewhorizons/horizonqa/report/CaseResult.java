@@ -19,6 +19,7 @@ public record CaseResult(String id, String classname, String name, Status status
     double timeSeconds, String failureMessage, String failureType, String failureTrace, List<String> outputLines,
     String blockedByIssueId) {
 
+    private static final String PARAMETERS_PREFIX = "parameters=";
     public static final String CLEANUP_ERROR = "CLEANUP_ERROR";
     public static final String TEMPLATE_ERROR = "TEMPLATE_ERROR";
     public static final String ASSUMPTION_FAILED = "ASSUMPTION_FAILED";
@@ -48,8 +49,8 @@ public record CaseResult(String id, String classname, String name, Status status
     }
 
     public static CaseResult from(GameTestInstance inst) {
-        String testId = inst.getDefinition()
-            .getTestId();
+        GameTestDefinition definition = inst.getDefinition();
+        String testId = definition.getTestId();
 
         Throwable cause = failureCauseForReport(inst);
         String failureMessage = failureMessage(inst, cause);
@@ -57,6 +58,7 @@ public record CaseResult(String id, String classname, String name, Status status
         String failureTrace = inst.getStatus() == GameTestStatus.SKIPPED ? "" : cause != null ? stackTrace(cause) : "";
 
         List<String> output = new ArrayList<>();
+        addParameterSummary(definition, output);
         for (TestEvent event : inst.getRecorder()
             .snapshot()) {
             output.add(formatEvent(event));
@@ -67,11 +69,10 @@ public record CaseResult(String id, String classname, String name, Status status
 
         return new CaseResult(
             testId,
-            classname(testId),
-            name(testId),
+            definition.getReportClassName(),
+            definition.getReportName(),
             Status.from(inst.getStatus()),
-            inst.getDefinition()
-                .isRequired(),
+            definition.isRequired(),
             inst.getTickCount(),
             inst.getTickCount() / TICKS_PER_SECOND,
             failureMessage,
@@ -91,8 +92,8 @@ public record CaseResult(String id, String classname, String name, Status status
         String failureMessage = message == null || message.isEmpty() ? "Blocked by infrastructure issue" : message;
         return new CaseResult(
             testId,
-            classname(testId),
-            name(testId),
+            definition.getReportClassName(),
+            definition.getReportName(),
             Status.NOT_STARTED,
             definition.isRequired(),
             0,
@@ -100,7 +101,7 @@ public record CaseResult(String id, String classname, String name, Status status
             failureMessage,
             failureType == null || failureType.isEmpty() ? "INFRASTRUCTURE_ERROR" : failureType,
             "",
-            Collections.emptyList(),
+            parameterOutput(definition),
             blockedByIssueId);
     }
 
@@ -108,8 +109,8 @@ public record CaseResult(String id, String classname, String name, Status status
         String testId = definition.getTestId();
         return new CaseResult(
             testId,
-            classname(testId),
-            name(testId),
+            definition.getReportClassName(),
+            definition.getReportName(),
             Status.SKIPPED,
             definition.isRequired(),
             0,
@@ -117,7 +118,7 @@ public record CaseResult(String id, String classname, String name, Status status
             reason == null || reason.isEmpty() ? "Test was skipped" : reason,
             skipType == null || skipType.isEmpty() ? ASSUMPTION_FAILED : skipType,
             "",
-            Collections.emptyList(),
+            parameterOutput(definition),
             "");
     }
 
@@ -125,12 +126,13 @@ public record CaseResult(String id, String classname, String name, Status status
         String testId = definition.getTestId();
         String failureMessage = message == null || message.isEmpty() ? "Template setup failed" : message;
         List<String> output = new ArrayList<>();
+        addParameterSummary(definition, output);
         output.add("template=" + definition.getTemplateName());
         output.add("error=" + failureMessage);
         return new CaseResult(
             testId,
-            classname(testId),
-            name(testId),
+            definition.getReportClassName(),
+            definition.getReportName(),
             Status.ERROR,
             definition.isRequired(),
             0,
@@ -140,6 +142,23 @@ public record CaseResult(String id, String classname, String name, Status status
             cause != null ? stackTrace(cause) : "",
             output,
             "");
+    }
+
+    /**
+     * Supplied parameter summary when this result represents a parameterized case.
+     *
+     * <p>
+     * The summary is also emitted as JUnit {@code system-out}; this accessor lets status JSON expose
+     * the same input without copying all event output into that compact report.
+     * </p>
+     */
+    public String parameterSummary() {
+        for (String line : outputLines) {
+            if (line.startsWith(PARAMETERS_PREFIX)) {
+                return line.substring(PARAMETERS_PREFIX.length());
+            }
+        }
+        return "";
     }
 
     public boolean passed() {
@@ -302,21 +321,19 @@ public record CaseResult(String id, String classname, String name, Status status
         return String.format("[t=%5d] [%-11s] %s", event.tick(), event.category(), event.summary());
     }
 
-    private static String classname(String testId) {
-        int sep = splitIndex(testId);
-        return sep > 0 ? testId.substring(0, sep) : "horizonqa";
-    }
-
-    private static String name(String testId) {
-        int sep = splitIndex(testId);
-        return sep > 0 ? testId.substring(sep + 1) : testId;
-    }
-
-    private static int splitIndex(String testId) {
-        if (testId == null) {
-            return -1;
+    private static List<String> parameterOutput(GameTestDefinition definition) {
+        if (!definition.isParameterized()) {
+            return Collections.emptyList();
         }
-        return Math.max(testId.lastIndexOf('.'), testId.lastIndexOf('#'));
+        List<String> output = new ArrayList<>(1);
+        addParameterSummary(definition, output);
+        return output;
+    }
+
+    private static void addParameterSummary(GameTestDefinition definition, List<String> output) {
+        if (definition.isParameterized()) {
+            output.add(PARAMETERS_PREFIX + definition.getArgumentSummary());
+        }
     }
 
     private static String stackTrace(Throwable t) {

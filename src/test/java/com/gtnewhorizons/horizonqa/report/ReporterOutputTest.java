@@ -24,6 +24,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 
 public class ReporterOutputTest {
 
@@ -65,6 +66,43 @@ public class ReporterOutputTest {
         assertTrue(xml.contains("event &lt;line&gt;"));
         assertTrue(xml.contains("classname=\"horizonqa.selection\""));
         assertFalse(xml.contains("\u0001"));
+    }
+
+    @Test
+    public void parameterizedCaseKeepsStructuredIdentityAndReportsSuppliedValues() throws Exception {
+        GameTestDefinition definition = GameTestDefinition.parameterized(
+            "mod:Suite.acceptsVoltage",
+            "tier.4",
+            0,
+            ParameterizedDefinitions.class.getMethod("acceptsVoltage", GameTestHelper.class, int.class, String.class),
+            "",
+            20,
+            "",
+            true,
+            0,
+            new Object[] { 32, "LV" });
+        GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+        instance.start(null);
+
+        CaseResult resultCase = CaseResult.from(instance);
+
+        assertEquals("mod:Suite.acceptsVoltage[tier.4]", resultCase.id());
+        assertEquals("mod:Suite", resultCase.classname());
+        assertEquals("acceptsVoltage[tier.4]", resultCase.name());
+        assertEquals("[32, LV]", resultCase.parameterSummary());
+
+        RunResult result = RunResult
+            .completedCases("ci", Collections.singletonList(resultCase), Collections.emptyList(), "TEST.xml");
+        File xmlOutput = temporaryFolder.newFile("parameterized.xml");
+        JUnitXmlReporter.write(result, xmlOutput);
+        String xml = read(xmlOutput);
+        assertTrue(xml.contains("classname=\"mod:Suite\""));
+        assertTrue(xml.contains("name=\"acceptsVoltage[tier.4]\""));
+        assertTrue(xml.contains("parameters=[32, LV]"));
+
+        File jsonOutput = temporaryFolder.newFile("parameterized.json");
+        StatusJsonReporter.write(result, jsonOutput);
+        assertTrue(read(jsonOutput).contains("\"parameters\": \"[32, LV]\""));
     }
 
     @Test
@@ -493,5 +531,12 @@ public class ReporterOutputTest {
     public static final class TemplateDefinitions {
 
         public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class ParameterizedDefinitions {
+
+        public static void acceptsVoltage(GameTestHelper helper, int voltage, String tier) {
+            helper.succeed();
+        }
     }
 }

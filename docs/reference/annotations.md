@@ -7,7 +7,8 @@ description: Reference for @GameTest, @GameTestHolder, batch hooks, and stabilit
 
 ## `@GameTest`
 
-Marks a public static test method with signature `void name(GameTestHelper helper)`.
+Marks a public static test method with signature `void name(GameTestHelper helper)`. With `@MethodSource`, supplied
+parameters follow `GameTestHelper`; see [Parameterized tests](../guide/parameterized-tests.md).
 
 | Attribute       | Type      | Default | Description                                                            |
 |-----------------|-----------|---------|------------------------------------------------------------------------|
@@ -27,6 +28,20 @@ Validation rules:
 - The literal batch name `default` is reserved. Use `""` for the default batch.
 
 Stability: `@Experimental` (entire public API is experimental in 0.x.x).
+
+## `@MethodSource`
+
+Expands one `@GameTest` method into independently selectable and reported cases. `value` names a public static
+no-argument source method in the same holder; the default `""` uses the test method name. Sources execute during
+discovery and enumerate cases in encounter order; they do not define an automatic Cartesian product.
+
+Sources may return a `Stream`, `Iterable`, `Iterator`, or array. Every element must be a `GameTestArguments` row, named
+with `GameTestArguments.named(name, firstValue, remainingValues...)` or assigned an encounter index with
+`GameTestArguments.of(firstValue, remainingValues...)`. Use `namedValues(name, Object[])` or `ofValues(Object[])` when a
+later argument is `null` or an array. A source may contain at most 256 rows. Case names must be at most 128 characters,
+match `[A-Za-z0-9_.-]+`, and be unique within the source.
+
+Stability: `@Experimental`.
 
 ## `@GameTestHolder`
 
@@ -90,3 +105,6 @@ Expect breaking API refinements in 0.x.x; pin versions and budget for updates un
 Used in commands, JUnit XML (`classname` / `name`), batch summaries, selectors, and logs.
 
 Discovery constructs this ID only after the holder and method pass validation; duplicate IDs are excluded from the runnable set.
+
+Parameterized invocations append `[<caseName>]`, for example
+`mymod:AssemblerTests.processesOneRecipe[distilled_water]`.

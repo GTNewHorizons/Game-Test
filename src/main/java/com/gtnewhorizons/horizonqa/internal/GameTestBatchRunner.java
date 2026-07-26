@@ -452,7 +452,7 @@ public class GameTestBatchRunner {
         List<Batch> result = new ArrayList<>();
         for (Map.Entry<String, List<GameTestDefinition>> entry : testsByBatch.entrySet()) {
             entry.getValue()
-                .sort(Comparator.comparing(GameTestDefinition::getTestId));
+                .sort(GameTestDefinition.executionOrder());
             String name = entry.getKey();
             List<Method> before = sortedHookMethods(beforeMethods == null ? null : beforeMethods.get(name));
             List<Method> after = sortedHookMethods(afterMethods == null ? null : afterMethods.get(name));
