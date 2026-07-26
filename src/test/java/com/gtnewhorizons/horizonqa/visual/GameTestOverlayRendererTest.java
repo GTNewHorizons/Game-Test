@@ -67,6 +67,23 @@ public class GameTestOverlayRendererTest {
         assertTrue(rendered.contains("kindless infrastructure error"));
     }
 
+    @Test
+    public void skippedAssumptionShowsItsReason() throws Exception {
+        GameTestInstance instance = instance("assumptionSkip");
+
+        instance.start(null);
+
+        String rendered = String.join(
+            "\n",
+            GameTestOverlayRenderer.buildLines(
+                instance.getDefinition()
+                    .getTestId(),
+                instance.getStatus(),
+                instance));
+        assertTrue(rendered.contains("SKIPPED"));
+        assertTrue(rendered.contains("runtime capability unavailable"));
+    }
+
     private static GameTestInstance instance(String methodName) throws Exception {
         Method method = TestDefinitions.class.getMethod(methodName, GameTestHelper.class);
         GameTestDefinition definition = new GameTestDefinition(
@@ -95,6 +112,10 @@ public class GameTestOverlayRendererTest {
 
         public static void nullKindFailure(GameTestHelper helper) {
             throw new GameTestInfrastructureException(null, "kindless infrastructure error");
+        }
+
+        public static void assumptionSkip(GameTestHelper helper) {
+            helper.assumeTrue(false, "runtime capability unavailable");
         }
     }
 }

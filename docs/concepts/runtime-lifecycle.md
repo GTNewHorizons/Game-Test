@@ -9,7 +9,7 @@ Every Horizon-QA test follows the same broad lifecycle. Interactive and reported
 
 ## 1. Discover and validate
 
-At server startup, Forge ASM metadata identifies classes annotated with `@GameTestHolder`. Horizon-QA loads those holder classes and validates their test methods and batch hooks through reflection.
+At server startup, Forge ASM metadata identifies classes annotated with `@GameTestHolder`. Before loading a holder, Horizon-QA checks its `requiredMods` metadata. A missing mod gates the holder without class loading and records its annotated tests as intentionally skipped. Present holders are loaded and their test methods and batch hooks are validated through reflection.
 
 A runnable test method must be `public static`, return `void`, and accept exactly one `GameTestHelper`. Discovery also validates holder namespaces, template prefixes, timeout values, rotations, batch names, and duplicate test IDs.
 
@@ -52,6 +52,8 @@ Once preparation succeeds, Horizon-QA creates a test instance and calls the test
 
 The instance then advances through normal server START and END phases until it passes, fails, times out, or becomes an infrastructure error. Detailed timing behavior lives in [Execution model](execution-model.md#normal-test-ticks).
 
+`helper.assumeTrue(...)` and `helper.assumeFalse(...)` may intentionally skip a started test when a runtime precondition is unmet. The failed assumption aborts the current callback immediately.
+
 ## 5. Complete and clean
 
 Every started test runs callbacks registered through `helper.afterTest(...)` on each completion path:
@@ -59,6 +61,7 @@ Every started test runs callbacks registered through `helper.afterTest(...)` on 
 - pass,
 - assertion failure,
 - unexpected exception,
+- unmet runtime assumption,
 - timeout,
 - in-test infrastructure error.
 
@@ -73,6 +76,7 @@ Horizon-QA separates test behavior from infrastructure:
 | Result | Meaning |
 |---|---|
 | Passed | The test reached its declared success path and cleanup succeeded |
+| Skipped | A required mod or runtime assumption was not available; remaining test logic did not execute |
 | Failed | An assertion or other test-body failure occurred |
 | Timed out | The test reached `timeoutTicks` without succeeding |
 | Error | Setup, label resolution, cleanup, configuration, selection, reporting, or another infrastructure concern failed |

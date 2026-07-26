@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizons.horizonqa.api.GameTestAssumptionException;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.api.event.TestEvent;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
@@ -20,6 +21,8 @@ public record CaseResult(String id, String classname, String name, Status status
 
     public static final String CLEANUP_ERROR = "CLEANUP_ERROR";
     public static final String TEMPLATE_ERROR = "TEMPLATE_ERROR";
+    public static final String ASSUMPTION_FAILED = "ASSUMPTION_FAILED";
+    public static final String MISSING_REQUIRED_MOD = "MISSING_REQUIRED_MOD";
     private static final double TICKS_PER_SECOND = 20.0;
 
     public CaseResult {
@@ -51,7 +54,7 @@ public record CaseResult(String id, String classname, String name, Status status
         Throwable cause = failureCauseForReport(inst);
         String failureMessage = failureMessage(inst, cause);
         String failureType = failureType(inst, cause);
-        String failureTrace = cause != null ? stackTrace(cause) : "";
+        String failureTrace = inst.getStatus() == GameTestStatus.SKIPPED ? "" : cause != null ? stackTrace(cause) : "";
 
         List<String> output = new ArrayList<>();
         for (TestEvent event : inst.getRecorder()
@@ -101,6 +104,23 @@ public record CaseResult(String id, String classname, String name, Status status
             blockedByIssueId);
     }
 
+    public static CaseResult skipped(GameTestDefinition definition, String reason, String skipType) {
+        String testId = definition.getTestId();
+        return new CaseResult(
+            testId,
+            classname(testId),
+            name(testId),
+            Status.SKIPPED,
+            definition.isRequired(),
+            0,
+            0.0,
+            reason == null || reason.isEmpty() ? "Test was skipped" : reason,
+            skipType == null || skipType.isEmpty() ? ASSUMPTION_FAILED : skipType,
+            "",
+            Collections.emptyList(),
+            "");
+    }
+
     public static CaseResult templateError(GameTestDefinition definition, String message, Throwable cause) {
         String testId = definition.getTestId();
         String failureMessage = message == null || message.isEmpty() ? "Template setup failed" : message;
@@ -132,6 +152,14 @@ public record CaseResult(String id, String classname, String name, Status status
 
     public boolean timedOut() {
         return status == Status.TIMED_OUT;
+    }
+
+    public boolean skipped() {
+        return status == Status.SKIPPED;
+    }
+
+    public String skipReason() {
+        return skipped() ? failureMessage : "";
     }
 
     public boolean error() {
@@ -178,6 +206,7 @@ public record CaseResult(String id, String classname, String name, Status status
 
         NOT_STARTED,
         RUNNING,
+        SKIPPED,
         PASSED,
         FAILED,
         ERROR,
@@ -185,6 +214,8 @@ public record CaseResult(String id, String classname, String name, Status status
 
         private static Status from(GameTestStatus status) {
             switch (status) {
+                case SKIPPED:
+                    return SKIPPED;
                 case PASSED:
                     return PASSED;
                 case FAILED:
@@ -204,6 +235,10 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static String failureMessage(GameTestInstance inst, Throwable cause) {
         GameTestStatus status = inst.getStatus();
+        if (status == GameTestStatus.SKIPPED) {
+            return cause != null && cause.getMessage() != null ? cause.getMessage()
+                : "Runtime assumption was not satisfied";
+        }
         if (status == GameTestStatus.ERROR) {
             return errorMessage(cause, "Cleanup callback failed");
         }
@@ -222,6 +257,9 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static String failureType(GameTestInstance inst, Throwable cause) {
         GameTestStatus status = inst.getStatus();
+        if (status == GameTestStatus.SKIPPED) {
+            return cause instanceof GameTestAssumptionException ? ASSUMPTION_FAILED : "TEST_SKIPPED";
+        }
         if (status == GameTestStatus.ERROR) {
             if (cause instanceof GameTestInfrastructureException infrastructure) {
                 return infrastructure.kind();

@@ -94,7 +94,7 @@ Relative paths resolve from the Minecraft server process working directory, whic
 | `name`       | Method name                            |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
-Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate.
+Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
 
 When event recording is enabled, each `<testcase>` may include ordered `[t=NNN] [category] summary` lines in `<system-out>`. The server console also prints a compact failure tail.
 
@@ -106,11 +106,11 @@ Disable event recording only for performance investigations:
 
 ## Status JSON schema
 
-`horizonqa-result.json` is the compact automation surface. Schema version `1` has this top-level shape:
+`horizonqa-result.json` is the compact automation surface. Schema version `2` has this top-level shape:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "passed",
   "exitCode": 0,
   "configuration": {
@@ -137,6 +137,7 @@ Disable event recording only for performance investigations:
     "passed": 1,
     "failed": 0,
     "timedOut": 0,
+    "skipped": 0,
     "incomplete": 0,
     "requiredFailures": 0,
     "optionalFailures": 0,
@@ -155,7 +156,9 @@ Disable event recording only for performance investigations:
 }
 ```
 
-Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, and optional `failure` details.
+Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, optional `failure` details, or `skipReason` / `skipType` for an intentional skip.
+
+Schema version `2` adds the `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
 
 Status values are:
 
@@ -213,6 +216,18 @@ An optional failure or timeout:
 - does not make the process exit non-zero by itself.
 
 Use optional tests for genuinely quarantined, experimental, or environment-specific coverage. Required tests should gate merges.
+
+## Intentional skips
+
+A test is intentionally skipped when its holder has a missing `requiredMods` entry or a runtime `assumeTrue` / `assumeFalse` precondition is unmet. Intentional skips:
+
+- increment `counts.skipped`,
+- use per-test status `skipped`,
+- include `skipReason` and `skipType` in status JSON,
+- emit `<skipped message="…">` in JUnit XML,
+- do not change the process exit code by themselves.
+
+Setup-blocked cases remain `notStarted` with `blockedByIssueId`; they are not intentional assumptions and their underlying infrastructure issue still produces exit code `2`.
 
 ## GitHub Actions handling
 

@@ -32,14 +32,26 @@ Stability: `@Experimental` (entire public API is experimental in 0.x.x).
 
 Marks a class containing one or more `@GameTest` methods.
 
-| Attribute         | Type     | Default      | Description                                                          |
-|-------------------|----------|--------------|----------------------------------------------------------------------|
-| `value`           | `String` | *(required)* | Namespace for test ids and template lookups (typically the mod id)   |
-| `templatePrefix`  | `String` | `""`         | Prepended to relative template paths declared on `@GameTest`         |
+| Attribute         | Type       | Default      | Description                                                        |
+|-------------------|------------|--------------|--------------------------------------------------------------------|
+| `value`           | `String`   | *(required)* | Namespace for test ids and template lookups (typically the mod id) |
+| `templatePrefix`  | `String`   | `""`         | Prepended to relative template paths declared on `@GameTest`       |
+| `requiredMods`    | `String[]` | `{}`         | Mod ids that must be loaded before this holder is inspected        |
 
 Stability: `@Experimental`.
 
 Holder `value` must match `[a-z0-9_.-]+`. `templatePrefix` cannot begin or end with `/`, contain `//`, or contain the substring `..`.
+
+When any `requiredMods` entry is absent, discovery reads the holder and its `@GameTest` methods from Forge ASM metadata without loading the holder class. Each selected method is reported as `skipped` with type `MISSING_REQUIRED_MOD`; its method body, template, and batch hooks do not run. This makes a separate compatibility holder safe even when its bytecode directly references optional-mod classes:
+
+```java
+@GameTestHolder(value = "appliedenergistics2", requiredMods = "ae2fc")
+public class FluidCraftingCompatibilityTests {
+    // @GameTest methods may reference AE2 Fluid Crafting classes directly.
+}
+```
+
+Put only tests with the same dependency set in a mod-gated holder. Use a separate holder when one compatibility area needs an optional mod and other tests do not.
 
 ## `@BeforeBatch` and `@AfterBatch`
 

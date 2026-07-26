@@ -7,9 +7,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,6 +23,7 @@ import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 
+import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.discovery.ASMDataTable;
 
 public final class GameTestRegistry {
@@ -51,6 +54,10 @@ public final class GameTestRegistry {
     }
 
     public static DiscoveryResult discoverTests() {
+        return discoverTests(Loader::isModLoaded);
+    }
+
+    static DiscoveryResult discoverTests(Predicate<String> modLoaded) {
         ALL_TESTS.clear();
         BEFORE_BATCH_METHODS.clear();
         AFTER_BATCH_METHODS.clear();
@@ -73,8 +80,14 @@ public final class GameTestRegistry {
             return publish(collector, Collections.emptySet(), 0);
         }
 
+        Set<ASMDataTable.ASMData> testAnnotations = asmData.getAll(GameTest.class.getName());
         for (ASMDataTable.ASMData holderData : holderAnnotations) {
             String className = holderData.getClassName();
+            List<String> missingMods = missingRequiredMods(holderData.getAnnotationInfo(), modLoaded);
+            if (!missingMods.isEmpty()) {
+                processMissingModHolder(holderData, testAnnotations, missingMods, collector);
+                continue;
+            }
             try {
                 Class<?> holderClass = Class.forName(className, false, GameTestRegistry.class.getClassLoader());
                 processHolderClass(holderClass, collector);
@@ -90,6 +103,124 @@ public final class GameTestRegistry {
 
         Set<String> duplicateIds = findDuplicates(collector);
         return publish(collector, duplicateIds, holderAnnotations.size());
+    }
+
+    private static List<String> missingRequiredMods(Map<String, Object> annotationInfo, Predicate<String> modLoaded) {
+        List<String> requiredMods = annotationStrings(annotationInfo, "requiredMods");
+        List<String> missing = new ArrayList<>();
+        for (String modId : new LinkedHashSet<>(requiredMods)) {
+            if (!modId.isEmpty() && !modLoaded.test(modId)) {
+                missing.add(modId);
+            }
+        }
+        return missing;
+    }
+
+    private static void processMissingModHolder(ASMDataTable.ASMData holderData,
+        Set<ASMDataTable.ASMData> testAnnotations, List<String> missingMods, DiscoveryCollector collector) {
+        Map<String, Object> holderInfo = holderData.getAnnotationInfo();
+        String className = holderData.getClassName();
+        String namespace = annotationString(holderInfo, "value", "");
+        String templatePrefix = annotationString(holderInfo, "templatePrefix", "");
+        String skipReason = missingMods.size() == 1 ? "Required mod is not loaded: " + missingMods.get(0)
+            : "Required mods are not loaded: " + String.join(", ", missingMods);
+
+        if (!validNamespace(namespace) || !validTemplatePrefix(templatePrefix)) {
+            DiscoveryIssue issue = issue(
+                "discovery:invalidGatedHolder:" + className,
+                KIND_DISCOVERY_ERROR,
+                "Cannot register mod-gated @GameTestHolder '" + className
+                    + "': its namespace or templatePrefix is invalid.");
+            collector.issues.add(issue);
+            LOG.warn(issue.message());
+            return;
+        }
+
+        int skippedCount = 0;
+        for (ASMDataTable.ASMData testData : testAnnotations) {
+            if (!className.equals(testData.getClassName())) {
+                continue;
+            }
+            String methodName = methodName(testData.getObjectName());
+            Map<String, Object> testInfo = testData.getAnnotationInfo();
+            String rawTemplate = annotationString(testInfo, "template", "");
+            int timeoutTicks = annotationInt(testInfo, "timeoutTicks", 100);
+            String batch = annotationString(testInfo, "batch", "");
+            boolean required = annotationBoolean(testInfo, "required", true);
+            int rotation = annotationInt(testInfo, "rotation", 0);
+            String testId = namespace + ":" + simpleClassName(className) + "." + methodName;
+            collector.validTests.add(
+                GameTestDefinition.skippedAtDiscovery(
+                    testId,
+                    className,
+                    resolveTemplate(namespace, templatePrefix, rawTemplate, methodName),
+                    timeoutTicks,
+                    batch,
+                    required,
+                    rotation,
+                    skipReason));
+            skippedCount++;
+        }
+        LOG.info(
+            "Skipped loading @GameTestHolder '{}' because {} ({} test(s) gated).",
+            className,
+            skipReason,
+            skippedCount);
+    }
+
+    private static List<String> annotationStrings(Map<String, Object> annotationInfo, String name) {
+        if (annotationInfo == null) {
+            return Collections.emptyList();
+        }
+        Object value = annotationInfo.get(name);
+        if (value instanceof List<?>values) {
+            List<String> strings = new ArrayList<>();
+            for (Object item : values) {
+                if (item instanceof String string) {
+                    strings.add(string);
+                }
+            }
+            return strings;
+        }
+        if (value instanceof String string) {
+            return Collections.singletonList(string);
+        }
+        return Collections.emptyList();
+    }
+
+    private static String annotationString(Map<String, Object> annotationInfo, String name, String fallback) {
+        if (annotationInfo == null) {
+            return fallback;
+        }
+        Object value = annotationInfo.get(name);
+        return value instanceof String string ? string : fallback;
+    }
+
+    private static int annotationInt(Map<String, Object> annotationInfo, String name, int fallback) {
+        if (annotationInfo == null) {
+            return fallback;
+        }
+        Object value = annotationInfo.get(name);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private static boolean annotationBoolean(Map<String, Object> annotationInfo, String name, boolean fallback) {
+        if (annotationInfo == null) {
+            return fallback;
+        }
+        Object value = annotationInfo.get(name);
+        return value instanceof Boolean bool ? bool : fallback;
+    }
+
+    private static String methodName(String objectName) {
+        int descriptor = objectName == null ? -1 : objectName.indexOf('(');
+        return descriptor >= 0 ? objectName.substring(0, descriptor) : objectName;
+    }
+
+    private static String simpleClassName(String className) {
+        int nested = className.lastIndexOf('$');
+        int separator = nested >= 0 ? nested : className.lastIndexOf('.');
+        return separator >= 0 ? className.substring(separator + 1) : className;
     }
 
     private static DiscoveryResult publish(DiscoveryCollector collector, Set<String> duplicateIds,
@@ -362,7 +493,7 @@ public final class GameTestRegistry {
                 KIND_DISCOVERY_ERROR,
                 "Invalid @GameTestHolder namespace in '" + holderClass.getName() + "': must not be empty.");
         }
-        if (!namespace.matches("[a-z0-9_.-]+")) {
+        if (!validNamespace(namespace)) {
             return issue(
                 "discovery:invalidHolder:" + holderClass.getName() + ":namespace",
                 KIND_DISCOVERY_ERROR,
@@ -374,13 +505,15 @@ public final class GameTestRegistry {
         return null;
     }
 
+    private static boolean validNamespace(String namespace) {
+        return namespace != null && namespace.matches("[a-z0-9_.-]+");
+    }
+
     private static DiscoveryIssue validateTemplatePrefix(String templatePrefix, Class<?> holderClass) {
         if (templatePrefix == null || templatePrefix.isEmpty()) {
             return null;
         }
-        if (templatePrefix.startsWith("/") || templatePrefix.endsWith("/")
-            || templatePrefix.contains("//")
-            || templatePrefix.contains("..")) {
+        if (!validTemplatePrefix(templatePrefix)) {
             return issue(
                 "discovery:invalidHolder:" + holderClass.getName() + ":templatePrefix",
                 KIND_DISCOVERY_ERROR,
@@ -390,6 +523,13 @@ public final class GameTestRegistry {
                     + "': must not start/end with '/', contain empty path segments, or contain '..'.");
         }
         return null;
+    }
+
+    private static boolean validTemplatePrefix(String templatePrefix) {
+        return templatePrefix != null && !templatePrefix.startsWith("/")
+            && !templatePrefix.endsWith("/")
+            && !templatePrefix.contains("//")
+            && !templatePrefix.contains("..");
     }
 
     private static void collectBatchNameIssue(String batch, Method method, String owner, List<DiscoveryIssue> issues) {
@@ -446,19 +586,34 @@ public final class GameTestRegistry {
             String testId = entry.getKey();
             duplicateIds.add(testId);
             List<Method> methods = new ArrayList<>();
+            List<String> sourceRefs = new ArrayList<>();
+            Set<String> holderClassNames = new LinkedHashSet<>();
             for (GameTestDefinition def : entry.getValue()) {
-                methods.add(def.getMethod());
+                if (!def.getHolderClassName()
+                    .isEmpty()) {
+                    holderClassNames.add(def.getHolderClassName());
+                }
+                if (def.getMethod() != null) {
+                    methods.add(def.getMethod());
+                    sourceRefs.add(methodRef(def.getMethod()));
+                } else {
+                    sourceRefs.add(
+                        def.getHolderClassName() + "#"
+                            + def.getTestId()
+                                .substring(
+                                    def.getTestId()
+                                        .lastIndexOf('.') + 1));
+                }
             }
             methods.sort(METHOD_ORDER);
+            Collections.sort(sourceRefs);
 
             DiscoveryIssue issue = issue(
                 "discovery:duplicateId:" + testId,
                 KIND_DUPLICATE_TEST_ID,
-                "Duplicate @GameTest id '" + testId
-                    + "' found in "
-                    + renderMethods(methods)
-                    + "; all duplicates are excluded.");
-            collector.duplicateIds.add(new DuplicateTestId(testId, immutableList(methods)));
+                "Duplicate @GameTest id '" + testId + "' found in " + sourceRefs + "; all duplicates are excluded.");
+            collector.duplicateIds.add(
+                new DuplicateTestId(testId, immutableList(methods), immutableList(new ArrayList<>(holderClassNames))));
             collector.issues.add(issue);
             LOG.warn(issue.message());
         }

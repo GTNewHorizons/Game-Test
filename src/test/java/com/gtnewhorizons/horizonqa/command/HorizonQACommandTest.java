@@ -147,6 +147,7 @@ public class HorizonQACommandTest {
             "ci",
             Arrays.asList(
                 caseResult("mod:Suite.passed", CaseResult.Status.PASSED),
+                caseResult("mod:Suite.skipped", CaseResult.Status.SKIPPED),
                 caseResult("mod:Suite.failed", CaseResult.Status.FAILED),
                 caseResult("mod:Suite.timedOut", CaseResult.Status.TIMED_OUT),
                 caseResult("mod:Suite.error", CaseResult.Status.ERROR)),
@@ -157,6 +158,7 @@ public class HorizonQACommandTest {
 
         Set<String> failedIds = (Set<String>) commandField("LAST_REPORTED_FAILED_IDS").get(null);
         assertFalse(failedIds.contains("mod:Suite.passed"));
+        assertFalse(failedIds.contains("mod:Suite.skipped"));
         assertTrue(failedIds.contains("mod:Suite.failed"));
         assertTrue(failedIds.contains("mod:Suite.timedOut"));
         assertTrue(failedIds.contains("mod:Suite.error"));

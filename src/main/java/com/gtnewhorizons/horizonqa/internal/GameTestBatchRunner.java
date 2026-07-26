@@ -68,7 +68,17 @@ public class GameTestBatchRunner {
         Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues, Consumer<RunResult> onComplete) {
         runner = new GameTestRunner();
         grid = new GameTestGridLayout();
-        batches = buildBatches(tests, beforeBatchMethods, afterBatchMethods);
+        List<GameTestDefinition> runnableTests = new ArrayList<>();
+        for (GameTestDefinition test : tests) {
+            if (test.isSkippedAtDiscovery()) {
+                resultEntries.add(
+                    ResultEntry.result(
+                        CaseResult.skipped(test, test.getDiscoverySkipReason(), CaseResult.MISSING_REQUIRED_MOD)));
+            } else {
+                runnableTests.add(test);
+            }
+        }
+        batches = buildBatches(runnableTests, beforeBatchMethods, afterBatchMethods);
         this.onComplete = onComplete;
         if (issues != null) {
             this.issues.addAll(issues);

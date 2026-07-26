@@ -155,10 +155,7 @@ public class HorizonQACommand extends CommandBase {
                     int colon = id.indexOf(':');
                     int dot = id.lastIndexOf('.');
                     if (colon > 0) selectors.add(id.substring(0, colon));
-                    selectors.add(
-                        def.getMethod()
-                            .getDeclaringClass()
-                            .getSimpleName());
+                    selectors.add(def.getHolderSimpleName());
                     if (colon > 0 && dot > colon) selectors.add(id.substring(0, dot));
                     selectors.add(id);
                 }
@@ -213,6 +210,12 @@ public class HorizonQACommand extends CommandBase {
                 sender,
                 Collections.singletonList(def),
                 EnumChatFormatting.GREEN + "Launched report batch: " + EnumChatFormatting.YELLOW + def.getTestId());
+            return;
+        }
+        if (def.isSkippedAtDiscovery()) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.YELLOW + "Skipped: " + def.getTestId() + " - " + def.getDiscoverySkipReason()));
             return;
         }
         if (rejectBatchRunning(sender)) return;
@@ -272,6 +275,10 @@ public class HorizonQACommand extends CommandBase {
         if (rejectBatchRunning(sender)) return;
         InteractiveTestSession session = InteractiveTestSession.get();
         session.clearAll();
+        int skipped = 0;
+        for (GameTestDefinition test : tests) {
+            if (test.isSkippedAtDiscovery()) skipped++;
+        }
         int launched = session.launchTests(tests);
         if (launched > 0) {
             sender.addChatMessage(
@@ -281,13 +288,26 @@ public class HorizonQACommand extends CommandBase {
                         + launched
                         + EnumChatFormatting.GREEN
                         + " test(s)."));
-            if (launched < tests.size()) {
+            if (skipped > 0) {
+                sender.addChatMessage(
+                    new ChatComponentText(
+                        EnumChatFormatting.YELLOW + "Skipped "
+                            + skipped
+                            + " test(s) because required mods are not loaded. Check the server log for reasons."));
+            }
+            int launchErrors = tests.size() - launched - skipped;
+            if (launchErrors > 0) {
                 sender.addChatMessage(
                     new ChatComponentText(
                         EnumChatFormatting.YELLOW + "Could not launch "
-                            + (tests.size() - launched)
+                            + launchErrors
                             + " test(s). Check TEMPLATE_ERROR markers and the server log."));
             }
+        } else if (skipped == tests.size()) {
+            sender.addChatMessage(
+                new ChatComponentText(
+                    EnumChatFormatting.YELLOW
+                        + "No tests launched; all selected tests were skipped because required mods are not loaded."));
         } else {
             sender.addChatMessage(
                 new ChatComponentText(

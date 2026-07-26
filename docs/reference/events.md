@@ -67,6 +67,10 @@ This catalog lists event records with active emit sites in the current implement
 | `WarpFinished` | A time-warp ends |
 | `TestFinished` | Cleanup has run and the final status is known |
 
+`TestFinished.status` is one of `passed`, `skipped`, `failed`, `timed out`, or `error`. `skipped`
+means a runtime assumption was not satisfied. Discovery-time required-mod skips do not start a test
+instance, so they do not emit test events.
+
 `WarpFinished.stopReason` is:
 
 - `completed` when a fixed warp runs its full length.

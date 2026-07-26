@@ -1,19 +1,35 @@
 package com.gtnewhorizons.horizonqa.internal;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.junit.After;
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
+import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 
+import cpw.mods.fml.common.discovery.ASMDataTable;
+
 public class GameTestRegistryTest {
+
+    @After
+    public void clearAsmData() {
+        GameTestRegistry.setAsmData(null);
+    }
 
     @Test
     public void beforeBatchHooksMustReturnVoid() throws Exception {
@@ -66,6 +82,111 @@ public class GameTestRegistryTest {
         assertTrue(issues.isEmpty());
     }
 
+    @Test
+    public void missingRequiredModGatesHolderFromAsmWithoutLoadingItsDefinition() {
+        String holderClassName = GameTestRegistryTest.class.getName() + "$ModGatedTests";
+        ASMDataTable table = gatedAsmData(holderClassName);
+        GameTestRegistry.setAsmData(table);
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+
+        assertTrue(
+            discovery.issues()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.validTests()
+                .size());
+        GameTestDefinition definition = discovery.validTests()
+            .get(0);
+        assertEquals("testmod:ModGatedTests.gated", definition.getTestId());
+        assertEquals(holderClassName, definition.getHolderClassName());
+        assertEquals("testmod:compat/cell", definition.getTemplateName());
+        assertEquals("compat", definition.getBatch());
+        assertFalse(definition.isRequired());
+        assertEquals(2, definition.getRotation());
+        assertNull(definition.getMethod());
+        assertTrue(definition.isSkippedAtDiscovery());
+        assertEquals("Required mod is not loaded: optionalmod", definition.getDiscoverySkipReason());
+    }
+
+    @Test
+    public void presentRequiredModLoadsAndReflectivelyValidatesHolder() {
+        String holderClassName = ModGatedTests.class.getName();
+        GameTestRegistry.setAsmData(gatedAsmData(holderClassName));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests("optionalmod"::equals);
+
+        assertTrue(
+            discovery.issues()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.validTests()
+                .size());
+        GameTestDefinition definition = discovery.validTests()
+            .get(0);
+        assertFalse(definition.isSkippedAtDiscovery());
+        assertEquals(
+            ModGatedTests.class,
+            definition.getMethod()
+                .getDeclaringClass());
+    }
+
+    @Test
+    public void duplicateGatedTestsRetainHolderNamesForSelectionDiagnostics() {
+        String firstHolder = "missing.first.ModGatedTests";
+        String secondHolder = "missing.second.ModGatedTests";
+        ASMDataTable table = gatedAsmData(firstHolder);
+        addGatedAsmData(table, secondHolder);
+        GameTestRegistry.setAsmData(table);
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+
+        assertTrue(
+            discovery.validTests()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.duplicateIds()
+                .size());
+        DuplicateTestId duplicate = discovery.duplicateIds()
+            .get(0);
+        assertTrue(
+            duplicate.holderClassNames()
+                .contains(firstHolder));
+        assertTrue(
+            duplicate.holderClassNames()
+                .contains(secondHolder));
+    }
+
+    private static ASMDataTable gatedAsmData(String holderClassName) {
+        ASMDataTable table = new ASMDataTable();
+        addGatedAsmData(table, holderClassName);
+        return table;
+    }
+
+    private static void addGatedAsmData(ASMDataTable table, String holderClassName) {
+        Map<String, Object> holderInfo = new HashMap<>();
+        holderInfo.put("value", "testmod");
+        holderInfo.put("templatePrefix", "compat");
+        holderInfo.put("requiredMods", Collections.singletonList("optionalmod"));
+        table.addASMData(null, GameTestHolder.class.getName(), holderClassName, holderClassName, holderInfo);
+
+        Map<String, Object> testInfo = new HashMap<>();
+        testInfo.put("template", "cell");
+        testInfo.put("timeoutTicks", 40);
+        testInfo.put("batch", "compat");
+        testInfo.put("required", false);
+        testInfo.put("rotation", 2);
+        table.addASMData(
+            null,
+            GameTest.class.getName(),
+            holderClassName,
+            "gated(Lcom/gtnewhorizons/horizonqa/api/GameTestHelper;)V",
+            testInfo);
+    }
+
     private static List<DiscoveryIssue> collectBatchMethodIssues(Method method, HookPhase phase) throws Exception {
         Method validator = GameTestRegistry.class
             .getDeclaredMethod("collectBatchMethodIssues", Method.class, HookPhase.class, List.class);
@@ -90,5 +211,12 @@ public class GameTestRegistryTest {
         public static String nonVoidAfter() {
             return "done";
         }
+    }
+
+    @GameTestHolder(value = "testmod", templatePrefix = "compat", requiredMods = "optionalmod")
+    public static final class ModGatedTests {
+
+        @GameTest(template = "cell", timeoutTicks = 40, batch = "compat", required = false, rotation = 2)
+        public static void gated(GameTestHelper helper) {}
     }
 }

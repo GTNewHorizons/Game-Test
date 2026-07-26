@@ -32,6 +32,9 @@ public final class ConsoleReporter {
                 case PASSED:
                     LOG.info("  [PASS] {}", resultCase.id());
                     break;
+                case SKIPPED:
+                    LOG.info("  [SKIP] {} - {}", resultCase.id(), resultCase.skipReason());
+                    break;
                 case FAILED:
                     LOG.error("  [FAIL] {} - {}", resultCase.id(), detail(resultCase));
                     dumpOutputTail(resultCase);
@@ -60,6 +63,7 @@ public final class ConsoleReporter {
         LOG.info("  required timed out: {}", result.requiredTimedOut());
         LOG.info("  optional failed: {}", result.optionalFailed());
         LOG.info("  optional timed out: {}", result.optionalTimedOut());
+        LOG.info("  skipped: {}", result.skipped());
         LOG.info("  skipped by setup: {}", result.skippedBySetup());
         LOG.info("  infrastructure errors: {}", result.infrastructureErrors());
         LOG.info("=======================================================");
@@ -87,6 +91,8 @@ public final class ConsoleReporter {
             + result.optionalFailed()
             + " optionalTimedOut="
             + result.optionalTimedOut()
+            + " skipped="
+            + result.skipped()
             + " skippedBySetup="
             + result.skippedBySetup()
             + " infrastructureErrors="

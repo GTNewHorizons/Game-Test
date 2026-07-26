@@ -24,6 +24,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 public final class GameTestOverlayRenderer {
 
     private static final float[] COL_RUNNING = { 0.55f, 0.55f, 0.55f };
+    private static final float[] COL_SKIPPED = { 0.35f, 0.72f, 1.00f };
     private static final float[] COL_PASSED = { 0.18f, 1.00f, 0.38f };
     private static final float[] COL_FAILED = { 1.00f, 0.16f, 0.16f };
     private static final float[] COL_ERROR = { 1.00f, 0.12f, 0.72f };
@@ -127,6 +128,7 @@ public final class GameTestOverlayRenderer {
 
     private static float[] statusColor(GameTestStatus s) {
         return switch (s) {
+            case SKIPPED -> COL_SKIPPED;
             case PASSED -> COL_PASSED;
             case FAILED -> COL_FAILED;
             case ERROR -> COL_ERROR;
@@ -141,6 +143,14 @@ public final class GameTestOverlayRenderer {
 
         if (status == GameTestStatus.TIMED_OUT) {
             return new String[] { name, statusLine };
+        }
+
+        if (status == GameTestStatus.SKIPPED && inst != null && inst.getFailureCause() != null) {
+            String reason = inst.getFailureCause()
+                .getMessage();
+            if (reason != null && !reason.isEmpty()) {
+                return new String[] { name, statusLine, "\u00a7b" + ellipsize(reason, MAX_CELL_FAILURE_CHARS) };
+            }
         }
 
         if ((status == GameTestStatus.FAILED || status == GameTestStatus.ERROR) && inst != null) {
@@ -186,6 +196,7 @@ public final class GameTestOverlayRenderer {
     private static String statusLabel(GameTestStatus s, GameTestInstance inst) {
         String base = switch (s) {
             case RUNNING -> "\u00a77RUNNING\u00a7r";
+            case SKIPPED -> "\u00a7bSKIPPED\u00a7r";
             case PASSED -> "\u00a7aPASSED\u00a7r";
             case FAILED -> "\u00a7cFAILED\u00a7r";
             case ERROR -> "\u00a7dERROR\u00a7r";

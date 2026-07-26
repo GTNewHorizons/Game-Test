@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
+import com.gtnewhorizons.horizonqa.api.GameTestAssumptionException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.api.LabelResolutionException;
@@ -197,6 +198,10 @@ public class GameTestInstance {
 
     public void fail(Throwable cause) {
         if (status != GameTestStatus.RUNNING) return;
+        if (cause instanceof GameTestAssumptionException assumption) {
+            skip(assumption);
+            return;
+        }
         status = cause instanceof GameTestInfrastructureException ? GameTestStatus.ERROR : GameTestStatus.FAILED;
         failureCause = cause;
         if (cause instanceof GameTestAssertException gae && gae.hasPosition()) {
@@ -223,6 +228,15 @@ public class GameTestInstance {
         if (cause != null && !(cause instanceof GameTestAssertException)) {
             LOG.error("Caused by:", cause);
         }
+        runCleanup();
+        recordFinished();
+    }
+
+    private void skip(GameTestAssumptionException assumption) {
+        if (status != GameTestStatus.RUNNING) return;
+        status = GameTestStatus.SKIPPED;
+        failureCause = assumption;
+        LOG.info("SKIPPED  {} - {}", definition.getTestId(), assumption.getMessage());
         runCleanup();
         recordFinished();
     }
@@ -313,6 +327,7 @@ public class GameTestInstance {
 
     private String finishedStatusName() {
         return switch (status) {
+            case SKIPPED -> "skipped";
             case PASSED -> "passed";
             case FAILED -> "failed";
             case TIMED_OUT -> "timed out";

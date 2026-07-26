@@ -9,7 +9,7 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 
 public final class StatusJsonReporter {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
 
     private StatusJsonReporter() {}
 
@@ -77,6 +77,7 @@ public final class StatusJsonReporter {
         countFirst = appendNumberField(out, 2, "passed", result.passed(), countFirst);
         countFirst = appendNumberField(out, 2, "failed", result.failed(), countFirst);
         countFirst = appendNumberField(out, 2, "timedOut", result.timedOut(), countFirst);
+        countFirst = appendNumberField(out, 2, "skipped", result.skipped(), countFirst);
         countFirst = appendNumberField(out, 2, "incomplete", result.incomplete(), countFirst);
         countFirst = appendNumberField(out, 2, "requiredFailures", result.requiredFailures(), countFirst);
         countFirst = appendNumberField(out, 2, "optionalFailures", result.optionalFailures(), countFirst);
@@ -198,7 +199,10 @@ public final class StatusJsonReporter {
         if (hasText(resultCase.blockedByIssueId())) {
             first = appendStringField(out, 3, "blockedByIssueId", resultCase.blockedByIssueId(), first);
         }
-        if (!resultCase.passed()) {
+        if (resultCase.skipped()) {
+            first = appendStringField(out, 3, "skipReason", resultCase.skipReason(), first);
+            appendStringField(out, 3, "skipType", resultCase.failureType(), first);
+        } else if (!resultCase.passed()) {
             appendFailure(out, resultCase, first);
         }
 
@@ -230,6 +234,7 @@ public final class StatusJsonReporter {
         }
         return switch (status) {
             case PASSED -> "passed";
+            case SKIPPED -> "skipped";
             case FAILED -> "failed";
             case ERROR -> "error";
             case TIMED_OUT -> "timedOut";

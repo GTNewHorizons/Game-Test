@@ -170,7 +170,7 @@ public class InteractiveTestSession {
         for (Map.Entry<String, GameTestInstance> entry : lastInstances.entrySet()) {
             GameTestInstance inst = entry.getValue();
             if (!inst.isDone()) continue;
-            if (inst.getStatus() == GameTestStatus.PASSED) {
+            if (inst.getStatus() == GameTestStatus.PASSED || inst.getStatus() == GameTestStatus.SKIPPED) {
                 failedIds.remove(entry.getKey());
             } else {
                 failedIds.add(entry.getKey());
@@ -194,6 +194,10 @@ public class InteractiveTestSession {
     private List<PlannedTest> planTests(List<GameTestDefinition> defs) {
         List<PlannedTest> planned = new ArrayList<>(defs.size());
         for (GameTestDefinition def : defs) {
+            if (def.isSkippedAtDiscovery()) {
+                LOG.info("[GameTest] Skipped '{}': {}", def.getTestId(), def.getDiscoverySkipReason());
+                continue;
+            }
             HybridStructureTemplate template;
             try {
                 template = loadTemplate(def);
@@ -213,6 +217,10 @@ public class InteractiveTestSession {
     }
 
     private PlannedTest planTestAt(GameTestDefinition def, int originX, int originY, int originZ) {
+        if (def.isSkippedAtDiscovery()) {
+            LOG.info("[GameTest] Skipped '{}': {}", def.getTestId(), def.getDiscoverySkipReason());
+            return null;
+        }
         try {
             return planTestAt(def, originX, originY, originZ, loadTemplate(def));
         } catch (IOException e) {

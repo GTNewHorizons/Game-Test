@@ -196,20 +196,20 @@ Recommended CI and manual-report forms:
 
 ## Status JSON
 
-The status JSON is a concise machine-readable summary. Schema version `1` contains:
+The status JSON is a concise machine-readable summary. Schema version `2` contains:
 
 | Top-level field | Meaning                                                                        |
 |-----------------|--------------------------------------------------------------------------------|
-| `schemaVersion` | Integer schema version, currently `1`                                          |
+| `schemaVersion` | Integer schema version, currently `2`                                          |
 | `status`        | `passed`, `failed`, or `error`                                                 |
 | `exitCode`      | Process exit code Horizon-QA requests                                          |
 | `configuration` | Effective property values and defaults                                         |
-| `counts`        | Aggregate selected, passed, failed, timeout, optional, issue, and JUnit counts |
+| `counts`        | Aggregate selected, passed, failed, timeout, skipped, optional, issue, and JUnit counts |
 | `reports`       | JUnit and status report paths                                                  |
 | `issues`        | Infrastructure/configuration/selection/reporting issues                        |
 | `tests`         | Per-test status and optional failure details                                   |
 
-Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, and optional `failure`.
+Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status` is `skipped`.
 
 ## Exit codes
 
@@ -219,7 +219,7 @@ Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, an
 | `1`  | `failed` | At least one required test failed or timed out                                                                         |
 | `2`  | `error`  | Infrastructure, configuration, discovery-selection, template, cleanup, report-path, reporting, or incomplete-run error |
 
-Optional failures do not change the process exit code by themselves. They are counted in status JSON and represented as skipped in JUnit XML.
+Optional failures and intentional skips do not change the process exit code by themselves. They are counted in status JSON and represented as skipped in JUnit XML.
 
 !!! warning "Use lowercase property values"
 

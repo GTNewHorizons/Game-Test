@@ -22,6 +22,7 @@ examples/
   src/main/java/.../examples/tests/
     BasicTests.java
     HelperApiTests.java
+    MissingModGatedTests.java
     SequencePhaseTests.java
     StructureTests.java
     GTNHExampleTests.java
@@ -50,8 +51,9 @@ Start with one passing smoke test:
 
 | Class                | Focus                                                              |
 |----------------------|--------------------------------------------------------------------|
-| `BasicTests`         | Pass / fail / timeout, optional `required = false`, batch hooks    |
+| `BasicTests`         | Pass / fail / timeout, runtime assumptions, optional `required = false`, batch hooks |
 | `HelperApiTests`     | Blocks, inventories, NBT, entities, redstone, world controls, fake players |
+| `MissingModGatedTests` | Discovery-time `requiredMods` skip without loading or executing the holder |
 | `SequencePhaseTests` | START/END tick phases, ordering rules, timeout-boundary behavior   |
 | `StructureTests`     | Template loading and block-level assertions                        |
 | `GTNHExampleTests`   | EBF recipes, fluid hatches, maintenance flags, EU supply, temporary recipes, negative formation |
