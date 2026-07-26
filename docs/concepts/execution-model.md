@@ -110,6 +110,6 @@ Use [GTNH multiblock API](../guide/gtnh-api.md) for `runRecipe`, `runUntilMachin
 | Goal | Use |
 |---|---|
 | Iterate on one failing fixture with overlays | Interactive `run` or `runthis` |
-| Inspect a whole namespace visually | Interactive `runall <namespace>` |
+| Inspect a namespace, holder, or subsystem visually | Interactive `runall <selector>` |
 | Verify batch hooks or batch ordering locally | Manually reported execution |
 | Produce CI artifacts and a stable exit code | Automatic `ci` execution |

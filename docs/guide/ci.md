@@ -32,7 +32,7 @@ Use `horizonqa.mode=ci -Dhorizonqa.autoRun=false` when you want report files fro
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-Manual reported batches use the same report formats as automatic CI and default to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
+Manual reported batches use the same report formats as automatic CI and default to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [selector]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
 
 Modes are presets. Override specific behavior when the workflow needs it:
 
@@ -171,6 +171,9 @@ Use `horizonqa.tests` to limit automatic execution:
 
 ```text
 -Dhorizonqa.tests=mymod
+-Dhorizonqa.tests=AssemblerTests
+-Dhorizonqa.tests=mymod:AssemblerTests
+-Dhorizonqa.tests=mymod:AssemblerTests.processes
 -Dhorizonqa.tests=mymod:AssemblerTests.processesOneRecipe
 -Dhorizonqa.tests=mymod,compatmod:BridgeTests.basic
 ```
@@ -179,16 +182,17 @@ Selector grammar:
 
 ```text
 selectors := selector ("," selector)*
-selector  := namespace | exact-test-id
-namespace := token-without-colon
-exact-test-id := namespace ":" class-and-method
+selector  := unqualified-selector | test-id-prefix
+unqualified-selector := token-without-colon
+test-id-prefix := namespace ":" class-or-method-prefix
 ```
 
 Rules:
 
 - unset or empty `horizonqa.tests` selects all valid tests,
-- a namespace selector matches every valid test ID that starts with `namespace:`,
-- an exact selector must contain exactly one `:` and match the full test ID,
+- an unqualified selector matches either a namespace or a holder's simple or fully qualified class name,
+- a test-ID prefix must contain exactly one `:` and matches every valid test ID that starts with it,
+- a full test ID remains valid and normally selects one test,
 - whitespace around comma-separated tokens is trimmed,
 - empty tokens such as `a,,b` are invalid,
 - `*` is not supported; omit the property or set it to an empty value to run everything,
@@ -196,7 +200,7 @@ Rules:
 
 For automatic execution, invalid selector syntax aborts before tests run and exits `2`. A syntactically valid selector that matches no valid tests is reported as a CI infrastructure issue; if other selectors match valid tests, those tests still run and the final result still includes the selector issue.
 
-If no valid tests are selected automatically, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this exits `2`. Set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected and there are no selector infrastructure issues. Manual reported batches ignore these selector properties and use `/horizonqa run`, `/horizonqa runall [namespace]`, or `/horizonqa runfailed` arguments instead.
+If no valid tests are selected automatically, CI still writes `TEST-horizonqa.xml` and `horizonqa-result.json`. By default this exits `2`. Set `-Dhorizonqa.allowNoTests=true` only for jobs where an empty selection is expected and there are no selector infrastructure issues. Manual reported batches ignore these selector properties and use `/horizonqa run`, `/horizonqa runall [selector]`, or `/horizonqa runfailed` arguments instead.
 
 ## Optional tests
 

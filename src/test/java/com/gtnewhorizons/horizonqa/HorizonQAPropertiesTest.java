@@ -186,11 +186,11 @@ public class HorizonQAPropertiesTest {
             parsed.testSelectors()
                 .size());
         assertEquals(
-            new TestSelector(SelectorType.NAMESPACE, "moda"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "moda"),
             parsed.testSelectors()
                 .get(0));
         assertEquals(
-            new TestSelector(SelectorType.EXACT_TEST_ID, "modb:Suite.test"),
+            new TestSelector(SelectorType.TEST_ID_PREFIX, "modb:Suite.test"),
             parsed.testSelectors()
                 .get(1));
         assertEquals("true", parsed.rawAllowNoTests());
@@ -248,29 +248,38 @@ public class HorizonQAPropertiesTest {
     }
 
     @Test
-    public void selectorParsingAcceptsNamespacesAndExactTestIds() {
-        SelectorParseResult parsed = HorizonQAProperties.parseSelectors(" moda , modb:Suite.test , mod-c_1 ");
+    public void selectorParsingAcceptsNamespacesHoldersAndTestIdPrefixes() {
+        SelectorParseResult parsed = HorizonQAProperties
+            .parseSelectors(" moda , IOPortTests , appeng.gametests.IOPortTests , modb:Suite.test , mod-c_1 ");
 
         assertFalse(parsed.selectsAll());
         assertTrue(
             parsed.issues()
                 .isEmpty());
         assertEquals(
-            3,
+            5,
             parsed.selectors()
                 .size());
         assertEquals(
-            new TestSelector(SelectorType.NAMESPACE, "moda"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "moda"),
             parsed.selectors()
                 .get(0));
         assertEquals(
-            new TestSelector(SelectorType.EXACT_TEST_ID, "modb:Suite.test"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "IOPortTests"),
             parsed.selectors()
                 .get(1));
         assertEquals(
-            new TestSelector(SelectorType.NAMESPACE, "mod-c_1"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "appeng.gametests.IOPortTests"),
             parsed.selectors()
                 .get(2));
+        assertEquals(
+            new TestSelector(SelectorType.TEST_ID_PREFIX, "modb:Suite.test"),
+            parsed.selectors()
+                .get(3));
+        assertEquals(
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "mod-c_1"),
+            parsed.selectors()
+                .get(4));
     }
 
     @Test
@@ -283,7 +292,7 @@ public class HorizonQAPropertiesTest {
             parsed.selectors()
                 .size());
         assertEquals(
-            new TestSelector(SelectorType.NAMESPACE, "moda"),
+            new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "moda"),
             parsed.selectors()
                 .get(0));
         assertEquals(

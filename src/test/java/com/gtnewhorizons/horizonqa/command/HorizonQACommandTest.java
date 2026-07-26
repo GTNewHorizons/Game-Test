@@ -62,7 +62,21 @@ public class HorizonQACommandTest {
         List<String> runAllCompletions = command
             .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
         assertTrue(runAllCompletions.contains("good"));
+        assertTrue(runAllCompletions.contains("DummyTests"));
+        assertTrue(runAllCompletions.contains("good:Suite"));
+        assertTrue(runAllCompletions.contains("good:Suite.valid"));
         assertFalse(runAllCompletions.contains("bad"));
+    }
+
+    @Test
+    public void runAllSelectionAcceptsHolderAndTestIdPrefix() throws Exception {
+        GameTestDefinition dummyFirst = definition("good:DummyTests.first", DummyTests.class);
+        GameTestDefinition dummySecond = definition("good:DummyTests.second", DummyTests.class);
+        GameTestDefinition other = definition("good:OtherTests.third", OtherTests.class);
+        seedRegistry(Arrays.asList(dummyFirst, dummySecond, other), Collections.emptyList());
+
+        assertEquals(Arrays.asList(dummyFirst, dummySecond), HorizonQACommand.selectRunAllTests("DummyTests"));
+        assertEquals(Collections.singletonList(dummySecond), HorizonQACommand.selectRunAllTests("good:DummyTests.sec"));
     }
 
     @Test
@@ -165,7 +179,24 @@ public class HorizonQACommandTest {
     }
 
     private static GameTestDefinition definition(String testId, String templateName) throws Exception {
-        return new GameTestDefinition(testId, dummyMethod(), templateName, 20, "", true, 0);
+        return definition(testId, templateName, DummyTests.class);
+    }
+
+    private static GameTestDefinition definition(String testId, Class<?> holderClass) throws Exception {
+        return definition(testId, "", holderClass);
+    }
+
+    private static GameTestDefinition definition(String testId, String templateName, Class<?> holderClass)
+        throws Exception {
+
+        return new GameTestDefinition(
+            testId,
+            holderClass.getMethod("test", GameTestHelper.class),
+            templateName,
+            20,
+            "",
+            true,
+            0);
     }
 
     private static InvalidTestDefinition invalid(String testId) throws Exception {
@@ -230,6 +261,11 @@ public class HorizonQACommandTest {
     }
 
     public static final class DummyTests {
+
+        public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class OtherTests {
 
         public static void test(GameTestHelper helper) {}
     }

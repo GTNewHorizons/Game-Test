@@ -518,7 +518,7 @@ public final class HorizonQAProperties {
 
             int colon = token.indexOf(':');
             if (colon < 0) {
-                selectors.add(new TestSelector(SelectorType.NAMESPACE, token));
+                selectors.add(new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, token));
                 continue;
             }
 
@@ -536,11 +536,11 @@ public final class HorizonQAProperties {
                 issues.add(
                     invalidSelector(
                         "Invalid selector '" + token
-                            + "' (expected one ':' in an exact test id, for example namespace:Class.method)"));
+                            + "' (expected one ':' in a test id prefix, for example namespace:Class.method)"));
                 continue;
             }
 
-            selectors.add(new TestSelector(SelectorType.EXACT_TEST_ID, token));
+            selectors.add(new TestSelector(SelectorType.TEST_ID_PREFIX, token));
         }
 
         return new SelectorParseResult(
@@ -651,8 +651,8 @@ public final class HorizonQAProperties {
     }
 
     public enum SelectorType {
-        NAMESPACE,
-        EXACT_TEST_ID
+        NAMESPACE_OR_HOLDER,
+        TEST_ID_PREFIX
     }
 
     @Desugar

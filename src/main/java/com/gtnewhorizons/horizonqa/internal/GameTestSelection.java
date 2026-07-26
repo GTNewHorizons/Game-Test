@@ -1,5 +1,6 @@
 package com.gtnewhorizons.horizonqa.internal;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -38,7 +39,7 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         for (TestSelector selector : selectors) {
             boolean matchedValid = false;
             for (GameTestDefinition def : validTests) {
-                if (matches(selector, def.getTestId())) {
+                if (matches(selector, def.getTestId(), def.getMethod())) {
                     matchedValid = true;
                     selectedIds.add(def.getTestId());
                 }
@@ -65,6 +66,21 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         return new GameTestSelection(immutableList(selected), immutableList(issues));
     }
 
+    public static List<GameTestDefinition> matchingValidTests(List<GameTestDefinition> validTests,
+        String selectorValue) {
+
+        SelectorType type = selectorValue.indexOf(':') >= 0 ? SelectorType.TEST_ID_PREFIX
+            : SelectorType.NAMESPACE_OR_HOLDER;
+        TestSelector selector = new TestSelector(type, selectorValue);
+        List<GameTestDefinition> selected = new ArrayList<>();
+        for (GameTestDefinition def : validTests) {
+            if (matches(selector, def.getTestId(), def.getMethod())) {
+                selected.add(def);
+            }
+        }
+        return immutableList(selected);
+    }
+
     public static SelectionIssue noSelectedTests(boolean selectedAllTests) {
         String selector = selectedAllTests ? "<all valid tests>" : HorizonQAProperties.rawTests();
         String message = selectedAllTests ? "No valid tests were discovered."
@@ -72,16 +88,27 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
         return new SelectionIssue("selection:noTestsSelected", "NO_TESTS_SELECTED", selector, message);
     }
 
-    private static boolean matches(TestSelector selector, String testId) {
-        if (selector.type() == SelectorType.NAMESPACE) {
-            return testId.startsWith(selector.value() + ":");
+    private static boolean matches(TestSelector selector, String testId, Method holderMethod) {
+        if (selector.type() == SelectorType.TEST_ID_PREFIX) {
+            return testId.startsWith(selector.value());
         }
-        return testId.equals(selector.value());
+        if (testId.startsWith(selector.value() + ":")) {
+            return true;
+        }
+        if (holderMethod == null) {
+            return false;
+        }
+        Class<?> holderClass = holderMethod.getDeclaringClass();
+        String canonicalName = holderClass.getCanonicalName();
+        return holderClass.getSimpleName()
+            .equals(selector.value()) || canonicalName != null && canonicalName.equals(selector.value())
+            || holderClass.getName()
+                .equals(selector.value());
     }
 
     private static boolean matchesInvalid(TestSelector selector, List<InvalidTestDefinition> invalidTests) {
         for (InvalidTestDefinition invalidTest : invalidTests) {
-            if (matches(selector, invalidTest.intendedTestId())) {
+            if (matches(selector, invalidTest.intendedTestId(), invalidTest.method())) {
                 return true;
             }
         }
@@ -90,8 +117,14 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
 
     private static boolean matchesDuplicate(TestSelector selector, List<DuplicateTestId> duplicateIds) {
         for (DuplicateTestId duplicateId : duplicateIds) {
-            if (matches(selector, duplicateId.testId())) {
+            if (selector.type() == SelectorType.TEST_ID_PREFIX && duplicateId.testId()
+                .startsWith(selector.value())) {
                 return true;
+            }
+            for (Method method : duplicateId.methods()) {
+                if (matches(selector, duplicateId.testId(), method)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -99,7 +132,8 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
 
     private static SelectionIssue unmatchedIssue(TestSelector selector, boolean matchedInvalid,
         boolean matchedDuplicate) {
-        String selectorKind = selector.type() == SelectorType.NAMESPACE ? "namespace" : "exact test id";
+        String selectorKind = selector.type() == SelectorType.NAMESPACE_OR_HOLDER ? "namespace or holder"
+            : "test id prefix";
         String issueKind;
         String diagnosticKind;
         String message;
@@ -130,7 +164,7 @@ public record GameTestSelection(List<GameTestDefinition> selectedTests, List<Sel
             message = "The " + selectorKind + " selector '" + selector.value() + "' did not match any valid tests.";
         }
 
-        String selectorType = selector.type() == SelectorType.NAMESPACE ? "namespace" : "test";
+        String selectorType = selector.type() == SelectorType.NAMESPACE_OR_HOLDER ? "namespace" : "test";
         return new SelectionIssue(
             "selection:" + issueKind + ":" + selectorType + ":" + selector.value(),
             diagnosticKind,
