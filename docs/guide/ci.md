@@ -91,12 +91,14 @@ Relative paths resolve from the Minecraft server process working directory, whic
 | Field        | Meaning                                |
 |--------------|----------------------------------------|
 | `classname`  | Test ID prefix, for example `mymod:AssemblerTests` |
-| `name`       | Method name                            |
+| `name`       | Method name, with `[caseName]` for a parameterized case |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
 Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
 
-When event recording is enabled, each `<testcase>` may include ordered `[t=NNN] [category] summary` lines in `<system-out>`. The server console also prints a compact failure tail.
+Parameterized cases include a `parameters=[…]` line in `<system-out>`. When event recording is enabled, each
+`<testcase>` may also include ordered `[t=NNN] [category] summary` lines there. The server console prints a compact
+failure tail.
 
 Disable event recording only for performance investigations:
 
@@ -156,7 +158,10 @@ Disable event recording only for performance investigations:
 }
 ```
 
-Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `blockedByIssueId`, optional `failure` details, or `skipReason` / `skipType` for an intentional skip.
+Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` /
+`stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`,
+optional `parameters` for a parameterized case, optional `blockedByIssueId`, optional `failure` details, or
+`skipReason` / `skipType` for an intentional skip.
 
 Schema version `2` adds the `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
 

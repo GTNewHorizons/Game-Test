@@ -56,7 +56,8 @@ Confirm that:
 - the holder class is on the server runtime classpath,
 - the class has `@GameTestHolder("mymod")`,
 - the method has `@GameTest`,
-- the method is exactly `public static void name(GameTestHelper helper)`,
+- a basic method is exactly `public static void name(GameTestHelper helper)` (or follows the
+  [`@MethodSource` shape](parameterized-tests.md#test-and-source-shape)),
 - `timeoutTicks` is positive and `rotation` is between `0` and `3`,
 - the holder namespace and batch names follow the validation rules.
 

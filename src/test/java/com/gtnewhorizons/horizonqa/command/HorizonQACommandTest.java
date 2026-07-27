@@ -69,6 +69,30 @@ public class HorizonQACommandTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void runAllCompletionUsesParameterizedBaseIdentity() throws Exception {
+        GameTestDefinition parameterized = GameTestDefinition.parameterized(
+            "good:Suite.acceptsVoltage",
+            "tier.4",
+            0,
+            DummyTests.class.getMethod("parameterized", GameTestHelper.class, int.class),
+            "",
+            20,
+            "",
+            true,
+            0,
+            new Object[] { 32 });
+        seedRegistry(Collections.singletonList(parameterized), Collections.emptyList());
+
+        List<String> completions = new HorizonQACommand()
+            .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
+
+        assertTrue(completions.contains("good:Suite.acceptsVoltage"));
+        assertTrue(completions.contains("good:Suite.acceptsVoltage[tier.4]"));
+        assertFalse(completions.contains("good:Suite.acceptsVoltage[tier"));
+    }
+
+    @Test
     public void runAllSelectionAcceptsHolderAndTestIdPrefix() throws Exception {
         GameTestDefinition dummyFirst = definition("good:DummyTests.first", DummyTests.class);
         GameTestDefinition dummySecond = definition("good:DummyTests.second", DummyTests.class);
@@ -265,6 +289,8 @@ public class HorizonQACommandTest {
     public static final class DummyTests {
 
         public static void test(GameTestHelper helper) {}
+
+        public static void parameterized(GameTestHelper helper, int voltage) {}
     }
 
     public static final class OtherTests {

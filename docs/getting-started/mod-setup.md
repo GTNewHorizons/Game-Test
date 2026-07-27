@@ -71,8 +71,9 @@ src/main/resources/assets/mymod/horizonqastructures/
 Discovery is ASM-based at server start:
 
 - Every class annotated `@GameTestHolder` is scanned. Its `requiredMods` are checked from ASM metadata before the holder class is loaded.
-- Every **public static** method annotated `@GameTest` with signature `void name(GameTestHelper)` is registered.
-- Test ID format: `<holder.value>:<SimpleClassName>.<methodName>`
+- Every **public static** method annotated `@GameTest` with signature `void name(GameTestHelper)` is registered;
+  `@MethodSource` methods may add source-supplied parameters.
+- Test ID format: `<holder.value>:<SimpleClassName>.<methodName>`, with `[caseName]` appended for parameterized rows.
 
 There is no manual registration list and no service-file step.
 

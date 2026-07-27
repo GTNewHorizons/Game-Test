@@ -5,7 +5,9 @@ description: Write, run, and understand a minimal @GameTest method end-to-end.
 
 # Your first test
 
-A valid test is a **public static** method with exactly one parameter of type `GameTestHelper`, annotated with `@GameTest`, inside a class annotated with `@GameTestHolder`.
+A basic test is a **public static** method with exactly one parameter of type `GameTestHelper`, annotated with
+`@GameTest`, inside a class annotated with `@GameTestHolder`. Parameterized tests may declare source-supplied
+parameters after the helper; see [Parameterized tests](../guide/parameterized-tests.md).
 
 ## Minimal passing test
 
@@ -44,7 +46,8 @@ The server log should include:
 PASSED   mymod:SmokeTests.emptyCellPasses
 ```
 
-If the test is not discovered, confirm that the holder is on the server runtime classpath and that the method signature is exactly `public static void name(GameTestHelper helper)`.
+If the test is not discovered, confirm that the holder is on the server runtime classpath and that a basic method
+signature is exactly `public static void name(GameTestHelper helper)`.
 
 ## Test with a structure
 

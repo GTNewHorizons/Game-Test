@@ -7,19 +7,23 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.After;
 import org.junit.Test;
 
+import com.gtnewhorizons.horizonqa.api.GameTestArguments;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 import com.gtnewhorizons.horizonqa.api.annotation.AfterBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.BeforeBatch;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTest;
 import com.gtnewhorizons.horizonqa.api.annotation.GameTestHolder;
+import com.gtnewhorizons.horizonqa.api.annotation.MethodSource;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 
 import cpw.mods.fml.common.discovery.ASMDataTable;
@@ -134,6 +138,30 @@ public class GameTestRegistryTest {
     }
 
     @Test
+    public void missingRequiredModRetainsParameterizedCaseFamilyFromAsm() {
+        String holderClassName = "missing.mod.ParameterizedGatedTests";
+        ASMDataTable table = gatedAsmData(holderClassName);
+        table.addASMData(
+            null,
+            MethodSource.class.getName(),
+            holderClassName,
+            "gated(Lcom/gtnewhorizons/horizonqa/api/GameTestHelper;)V",
+            Collections.emptyMap());
+        GameTestRegistry.setAsmData(table);
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> false);
+
+        assertEquals(
+            1,
+            discovery.validTests()
+                .size());
+        assertTrue(
+            discovery.validTests()
+                .get(0)
+                .isUnresolvedCaseFamily());
+    }
+
+    @Test
     public void duplicateGatedTestsRetainHolderNamesForSelectionDiagnostics() {
         String firstHolder = "missing.first.ModGatedTests";
         String secondHolder = "missing.second.ModGatedTests";
@@ -160,9 +188,138 @@ public class GameTestRegistryTest {
                 .contains(secondHolder));
     }
 
+    @Test
+    public void methodSourceExpandsNamedRowsAndPassesArgumentsToEachInvocation() {
+        GameTestRegistry.setAsmData(holderAsmData(ParameterizedTests.class));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+
+        assertTrue(
+            discovery.issues()
+                .isEmpty());
+        assertEquals(
+            2,
+            discovery.validTests()
+                .size());
+        assertEquals(
+            "matrix:ParameterizedTests.acceptsVoltage[lv]",
+            discovery.validTests()
+                .get(0)
+                .getTestId());
+        assertEquals(
+            "matrix:ParameterizedTests.acceptsVoltage[mv]",
+            discovery.validTests()
+                .get(1)
+                .getTestId());
+
+        ParameterizedTests.observed.clear();
+        for (GameTestDefinition definition : discovery.validTests()) {
+            GameTestInstance instance = new GameTestInstance(definition, 0, 0, 0);
+            instance.start(null);
+            assertEquals(GameTestStatus.PASSED, instance.getStatus());
+        }
+        assertEquals(Arrays.asList("LV=32", "MV=128"), ParameterizedTests.observed);
+    }
+
+    @Test
+    public void emptyMethodSourceValueUsesTestMethodNameAndIndexedCaseIds() {
+        GameTestRegistry.setAsmData(holderAsmData(DefaultNamedSourceTests.class));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+
+        assertTrue(
+            discovery.issues()
+                .isEmpty());
+        assertEquals(
+            Arrays.asList("matrix:DefaultNamedSourceTests.fluid[0]", "matrix:DefaultNamedSourceTests.fluid[1]"),
+            Arrays.asList(
+                discovery.validTests()
+                    .get(0)
+                    .getTestId(),
+                discovery.validTests()
+                    .get(1)
+                    .getTestId()));
+        assertEquals(
+            "water",
+            discovery.validTests()
+                .get(0)
+                .getArguments()[0]);
+    }
+
+    @Test
+    public void duplicateMethodSourceNamesExcludeTheParameterizedMethod() {
+        GameTestRegistry.setAsmData(holderAsmData(DuplicateSourceNames.class));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+
+        assertTrue(
+            discovery.validTests()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.invalidTests()
+                .size());
+        assertTrue(
+            discovery.issues()
+                .get(0)
+                .message()
+                .contains("duplicate case name 'same'"));
+    }
+
+    @Test
+    public void incompatibleMethodSourceArgumentsExcludeTheParameterizedMethod() {
+        GameTestRegistry.setAsmData(holderAsmData(IncompatibleSourceArguments.class));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+
+        assertTrue(
+            discovery.validTests()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.invalidTests()
+                .size());
+        assertTrue(
+            discovery.issues()
+                .get(0)
+                .message()
+                .contains("java.lang.String, which cannot be passed to int"));
+    }
+
+    @Test
+    public void unsafeArgumentMaterializationBecomesADiscoveryIssue() {
+        GameTestRegistry.setAsmData(holderAsmData(DeeplyNestedSourceArguments.class));
+
+        DiscoveryResult discovery = GameTestRegistry.discoverTests(modId -> true);
+
+        assertTrue(
+            discovery.validTests()
+                .isEmpty());
+        assertEquals(
+            1,
+            discovery.invalidTests()
+                .size());
+        assertTrue(
+            discovery.issues()
+                .get(0)
+                .message()
+                .contains("argument arrays may be nested at most 64 levels"));
+    }
+
     private static ASMDataTable gatedAsmData(String holderClassName) {
         ASMDataTable table = new ASMDataTable();
         addGatedAsmData(table, holderClassName);
+        return table;
+    }
+
+    private static ASMDataTable holderAsmData(Class<?> holderClass) {
+        ASMDataTable table = new ASMDataTable();
+        table.addASMData(
+            null,
+            GameTestHolder.class.getName(),
+            holderClass.getName(),
+            holderClass.getName(),
+            Collections.emptyMap());
         return table;
     }
 
@@ -218,5 +375,74 @@ public class GameTestRegistryTest {
 
         @GameTest(template = "cell", timeoutTicks = 40, batch = "compat", required = false, rotation = 2)
         public static void gated(GameTestHelper helper) {}
+    }
+
+    @GameTestHolder("matrix")
+    public static final class ParameterizedTests {
+
+        static final List<String> observed = new ArrayList<>();
+
+        @GameTest
+        @MethodSource("voltages")
+        public static void acceptsVoltage(GameTestHelper helper, int voltage, String tier) {
+            observed.add(tier + "=" + voltage);
+            helper.succeed();
+        }
+
+        public static Stream<GameTestArguments> voltages() {
+            return Stream.of(GameTestArguments.named("lv", 32, "LV"), GameTestArguments.named("mv", 128, "MV"));
+        }
+    }
+
+    @GameTestHolder("matrix")
+    public static final class DefaultNamedSourceTests {
+
+        @GameTest
+        @MethodSource
+        public static void fluid(GameTestHelper helper, String fluidName) {}
+
+        public static GameTestArguments[] fluid() {
+            return new GameTestArguments[] { GameTestArguments.of("water"), GameTestArguments.of("lava") };
+        }
+    }
+
+    @GameTestHolder("matrix")
+    public static final class DuplicateSourceNames {
+
+        @GameTest
+        @MethodSource("rows")
+        public static void duplicate(GameTestHelper helper, int voltage) {}
+
+        public static List<GameTestArguments> rows() {
+            return Arrays.asList(GameTestArguments.named("same", 32), GameTestArguments.named("same", 128));
+        }
+    }
+
+    @GameTestHolder("matrix")
+    public static final class IncompatibleSourceArguments {
+
+        @GameTest
+        @MethodSource("rows")
+        public static void wrongType(GameTestHelper helper, int voltage) {}
+
+        public static List<GameTestArguments> rows() {
+            return Collections.singletonList(GameTestArguments.of("not a voltage"));
+        }
+    }
+
+    @GameTestHolder("matrix")
+    public static final class DeeplyNestedSourceArguments {
+
+        @GameTest
+        @MethodSource("rows")
+        public static void nested(GameTestHelper helper, Object value) {}
+
+        public static List<GameTestArguments> rows() {
+            Object nested = "leaf";
+            for (int i = 0; i < 70; i++) {
+                nested = new Object[] { nested };
+            }
+            return Collections.singletonList(GameTestArguments.of(nested));
+        }
     }
 }

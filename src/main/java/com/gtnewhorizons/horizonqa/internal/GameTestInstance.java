@@ -83,8 +83,12 @@ public class GameTestInstance {
                 definition.getTestId(),
                 new TestPos(originX, originY, originZ)));
         try {
+            Object[] suppliedArguments = definition.getArguments();
+            Object[] invocationArguments = new Object[suppliedArguments.length + 1];
+            invocationArguments[0] = helper;
+            System.arraycopy(suppliedArguments, 0, invocationArguments, 1, suppliedArguments.length);
             definition.getMethod()
-                .invoke(null, helper);
+                .invoke(null, invocationArguments);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
             fail(cause != null ? cause : e);

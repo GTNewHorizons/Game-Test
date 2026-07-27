@@ -22,8 +22,11 @@ public class AssemblerTests {
 Rules enforced at discovery (invalid methods are skipped with a log warning, not a crash):
 
 - Method must be **`public static`**.
-- Exactly one parameter: **`GameTestHelper`**.
+- Exactly one parameter, **`GameTestHelper`**, unless `@MethodSource` supplies additional parameters.
 - Return type **`void`**.
+
+Use [Parameterized tests](parameterized-tests.md) to execute the same behavior across voltages, fluids, item
+tiers, or other input rows while keeping an independent result for every case.
 
 ## Test identity
 
@@ -175,4 +178,5 @@ Prefer typed hatch and bus access (`inputBus(0)`, `energyHatch(0)`) over raw coo
 
 - [Negative assertions](negative-tests.md)
 - [Sequences and timing](sequences.md)
+- [Parameterized tests](parameterized-tests.md)
 - [Annotations](../reference/annotations.md)
