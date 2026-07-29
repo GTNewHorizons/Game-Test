@@ -1860,9 +1860,9 @@ public class GameTestHelper {
      */
     public GTNHGameTestHelper gtnh() {
         if (gtnh == null) {
-            if (!Loader.isModLoaded("gregtech")) {
+            if (!Loader.isModLoaded("gregtech_nh")) {
                 throw new IllegalStateException(
-                    "GT5-Unofficial (mod ID 'gregtech') is not loaded. Cannot use GTNHGameTestHelper.");
+                    "GT5-Unofficial NH (mod ID 'gregtech_nh') is not loaded. Cannot use GTNHGameTestHelper.");
             }
             gtnh = new GTNHGameTestHelper(this, world, originX, originY, originZ);
         }
