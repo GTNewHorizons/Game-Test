@@ -122,7 +122,7 @@ public class GTNHGameTestHelper {
     }
 
     public static void rotateStructureTileNbt(NBTTagCompound nbt, int rotation) {
-        if (Loader.isModLoaded("gregtech")) {
+        if (Loader.isModLoaded("gregtech_nh")) {
             gtAdapter().rotateStructureTileNbt(nbt, rotation);
         }
     }
