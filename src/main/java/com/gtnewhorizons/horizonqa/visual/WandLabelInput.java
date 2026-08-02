@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
 
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.visual.editor.WandFreecamController;
 
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -34,7 +35,7 @@ public final class WandLabelInput {
 
     private static void openLabelPrompt() {
         Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.thePlayer == null || mc.currentScreen != null) return;
+        if (mc == null || mc.thePlayer == null || mc.currentScreen != null || WandFreecamController.isActive()) return;
         ItemStack held = mc.thePlayer.getHeldItem();
         if (held == null || !(held.getItem() instanceof ItemHorizonWand)) return;
 

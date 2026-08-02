@@ -10,6 +10,7 @@ import net.minecraft.util.StatCollector;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.visual.editor.WandFreecamController;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
@@ -114,6 +115,14 @@ public final class WandHudOverlay {
             String.format(
                 StatCollector.translateToLocal("horizonqa.wand.hud.label_key"),
                 GameSettings.getKeyDisplayString(WandLabelInput.LABEL_KEY.getKeyCode())),
+            x,
+            y,
+            0xFFFFFF);
+        y += lineH;
+        fr.drawStringWithShadow(
+            String.format(
+                StatCollector.translateToLocal("horizonqa.wand.hud.freecam_key"),
+                GameSettings.getKeyDisplayString(WandFreecamController.FREECAM_KEY.getKeyCode())),
             x,
             y,
             0xFFFFFF);

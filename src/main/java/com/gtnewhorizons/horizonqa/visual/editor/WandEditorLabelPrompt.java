@@ -1,18 +1,21 @@
-package com.gtnewhorizons.horizonqa.visual;
+package com.gtnewhorizons.horizonqa.visual.editor;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 
 import org.lwjgl.input.Keyboard;
 
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
+import com.gtnewhorizons.horizonqa.item.ItemHorizonWand.LabelMutationResult;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
 import com.gtnewhorizons.horizonqa.network.WandLabelMessage;
 
-public final class WandLabelPrompt extends GuiScreen {
+/** Label creation and rename modal owned exclusively by the wand editor. */
+final class WandEditorLabelPrompt extends GuiScreen {
 
     private static final int BUTTON_SAVE = 0;
     private static final int BUTTON_REMOVE = 1;
@@ -22,14 +25,16 @@ public final class WandLabelPrompt extends GuiScreen {
     private final int y;
     private final int z;
     private final String existingName;
+    private final WandEditorScreen editorParent;
     private GuiTextField input;
     private String error = "";
 
-    WandLabelPrompt(int x, int y, int z, String existingName) {
+    WandEditorLabelPrompt(int x, int y, int z, String existingName, WandEditorScreen editorParent) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.existingName = existingName;
+        this.editorParent = editorParent;
     }
 
     @Override
@@ -49,7 +54,7 @@ public final class WandLabelPrompt extends GuiScreen {
                     buttonY,
                     80,
                     20,
-                    StatCollector.translateToLocal("horizonqa.wand.label.save")));
+                    StatCollector.translateToLocal("horizonqa.wand.editor.label_save")));
             buttonList.add(
                 new GuiButton(
                     BUTTON_CANCEL,
@@ -57,7 +62,7 @@ public final class WandLabelPrompt extends GuiScreen {
                     buttonY,
                     80,
                     20,
-                    StatCollector.translateToLocal("horizonqa.wand.label.cancel")));
+                    StatCollector.translateToLocal("horizonqa.wand.editor.label_cancel")));
             buttonList.add(
                 new GuiButton(
                     BUTTON_REMOVE,
@@ -65,7 +70,7 @@ public final class WandLabelPrompt extends GuiScreen {
                     buttonY,
                     80,
                     20,
-                    StatCollector.translateToLocal("horizonqa.wand.label.delete")));
+                    StatCollector.translateToLocal("horizonqa.wand.editor.label_delete")));
         } else {
             buttonList.add(
                 new GuiButton(
@@ -74,7 +79,7 @@ public final class WandLabelPrompt extends GuiScreen {
                     buttonY,
                     80,
                     20,
-                    StatCollector.translateToLocal("horizonqa.wand.label.save")));
+                    StatCollector.translateToLocal("horizonqa.wand.editor.label_save")));
             buttonList.add(
                 new GuiButton(
                     BUTTON_CANCEL,
@@ -82,7 +87,7 @@ public final class WandLabelPrompt extends GuiScreen {
                     buttonY,
                     80,
                     20,
-                    StatCollector.translateToLocal("horizonqa.wand.label.cancel")));
+                    StatCollector.translateToLocal("horizonqa.wand.editor.label_cancel")));
         }
     }
 
@@ -118,6 +123,9 @@ public final class WandLabelPrompt extends GuiScreen {
         } else if (button.id == BUTTON_CANCEL) {
             closePrompt();
         } else if (button.id == BUTTON_REMOVE && existingName != null) {
+            ItemStack wand = currentWand();
+            if (wand != null) ItemHorizonWand.removeLabel(wand, existingName);
+            editorParent.editorLabelRemoved(existingName);
             HorizonQANetwork.CHANNEL.sendToServer(new WandLabelMessage(existingName, x, y, z, true));
             closePrompt();
         }
@@ -132,11 +140,12 @@ public final class WandLabelPrompt extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
         String title = StatCollector.translateToLocal(
-            existingName != null ? "horizonqa.wand.label.rename_title" : "horizonqa.wand.label.create_title");
+            existingName != null ? "horizonqa.wand.editor.label_rename_title"
+                : "horizonqa.wand.editor.label_create_title");
         drawCenteredString(fontRendererObj, title, width / 2, height / 2 - 34, 0xFFFFFF);
         drawCenteredString(
             fontRendererObj,
-            StatCollector.translateToLocal("horizonqa.wand.label.target") + " " + x + ", " + y + ", " + z,
+            StatCollector.translateToLocal("horizonqa.wand.editor.label_target") + " " + x + ", " + y + ", " + z,
             width / 2,
             height / 2 - 22,
             0xAAAAAA);
@@ -156,9 +165,24 @@ public final class WandLabelPrompt extends GuiScreen {
         String name = input.getText()
             .trim();
         if (!ItemHorizonWand.isValidLabelName(name)) {
-            error = StatCollector.translateToLocal("horizonqa.wand.label.invalid");
+            error = StatCollector.translateToLocal("horizonqa.wand.editor.label_invalid");
             return;
         }
+        ItemStack wand = currentWand();
+        if (wand == null) {
+            closePrompt();
+            return;
+        }
+        LabelMutationResult result = ItemHorizonWand.setLabel(wand, name, x, y, z);
+        if (result.status == LabelMutationResult.Status.DUPLICATE_NAME) {
+            error = StatCollector.translateToLocal("horizonqa.wand.editor.label_duplicate");
+            return;
+        }
+        if (result.status != LabelMutationResult.Status.SUCCESS) {
+            error = StatCollector.translateToLocal("horizonqa.wand.editor.label_invalid");
+            return;
+        }
+        editorParent.editorLabelSaved(name);
         HorizonQANetwork.CHANNEL.sendToServer(new WandLabelMessage(name, x, y, z));
         closePrompt();
     }
@@ -167,11 +191,17 @@ public final class WandLabelPrompt extends GuiScreen {
         String name = input.getText()
             .trim();
         error = name.isEmpty() || ItemHorizonWand.isValidLabelName(name) ? ""
-            : StatCollector.translateToLocal("horizonqa.wand.label.invalid");
+            : StatCollector.translateToLocal("horizonqa.wand.editor.label_invalid");
+    }
+
+    private ItemStack currentWand() {
+        Minecraft mc = Minecraft.getMinecraft();
+        ItemStack held = mc.thePlayer != null ? mc.thePlayer.getHeldItem() : null;
+        return held != null && held.getItem() instanceof ItemHorizonWand ? held : null;
     }
 
     private void closePrompt() {
         Minecraft.getMinecraft()
-            .displayGuiScreen(null);
+            .displayGuiScreen(editorParent);
     }
 }

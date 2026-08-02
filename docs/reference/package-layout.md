@@ -54,10 +54,11 @@ Keep the holder `value` equal to your mod id unless you have a strong reason to 
 | `command`    | `/horizonqa` command handling                                      |
 | `internal`   | Registry, selection, grid, test instances, sequences, and runners  |
 | `item`       | Horizon Wand state and interaction                                 |
-| `network`    | Client/server messages used by wand labels                         |
+| `network`    | Client/server messages used by wand labels and selection editing   |
 | `report`     | Console, JUnit XML, status JSON, and atomic report writing          |
 | `structure`  | Template loading, placement, rotation, and export                   |
-| `visual`     | Client overlays, beacons, labels, and ghost-block differences      |
+| `visual`     | Shared client overlays, beacons, labels, and ghost-block differences |
+| `visual.editor` | Horizon Wand editor UI, freecam, gizmos, and editor input        |
 | `world`      | Dedicated void world type and chunk provider                       |
 | `mixin`      | Server lifecycle, shutdown, networking, and world hooks            |
 

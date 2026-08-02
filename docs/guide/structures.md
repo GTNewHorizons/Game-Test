@@ -71,14 +71,15 @@ public class MyTests {
 
 1. Build the structure in a dev world with Horizon-QA enabled.
 2. Select bounds with the **Horizon Wand**: ++left-button++ for pos1, ++right-button++ for pos2.
-3. Hold the wand and press ++l++ to label important coordinates such as `controller`, `input_bus`, or `energy_hatch`. Press ++l++ on an existing label to rename it or remove it. Sneak while pressing ++l++ to label the adjacent air block.
-4. Run `/horizonqa labels list` and fix any labels outside the selection.
-5. Run `/horizonqa export <name>`. Template path segments may use letters, digits, `_`, `-`, and `.` with `/` between segments.
-6. The server writes to `<serverDir>/horizonqastructures/`:
+3. With the wand still held, press ++f10++ to open the Horizon Editor. The world stays live in the center viewport while the side panels show transform tools, selection bounds, and labels. Fly with the normal movement keys, use ++space++ and ++shift++ to move vertically, and hold the sprint key to move faster. Choose **Move selection** and drag a red, green, or blue arrow to translate the complete selection along that world axis. Choose **Resize selection** and drag one of the six cube handles to move that side inward or outward. Both tools follow the projected cursor position and snap to whole blocks. Hold the right mouse button for normal Minecraft camera look. Press ++f6++ or ++esc++ to return to the player.
+4. Manage labels directly from the editor's right panel. Click **Add label**, then click a block in the viewport and enter a name such as `controller`, `input_bus`, or `energy_hatch`; hold ++shift++ while clicking to target the adjacent air coordinate. Select a label row to activate **Move label** arrows, or use **Rename** and **Delete** below the list. Outside the editor, the existing ++l++ shortcut still creates or edits the label at the crosshair. Moving a selection translates its labels with it; resizing leaves labels at their world coordinates so the labels panel can identify any that are now outside the selection.
+5. Run `/horizonqa labels list` and fix any labels outside the selection.
+6. Run `/horizonqa export <name>`. Template path segments may use letters, digits, `_`, `-`, and `.` with `/` between segments.
+7. The server writes to `<serverDir>/horizonqastructures/`:
    - `<name>.json` with the block palette and layers.
    - `<name>.snbt` with tile entity and non-player entity data, if the generated text round-trips losslessly.
    - `<name>.nbt` instead of `.snbt` when the NBT contains data that Minecraft 1.7.10's SNBT parser cannot represent safely, such as compound keys containing `:`.
-7. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
+8. Move the exported files into your mod's `assets/<modid>/horizonqastructures/`.
 
 To revise an existing template, target the coordinate where the template should start and run `/horizonqa load <modid:path/to/template>`. Horizon-QA places the structure, restores labels onto the wand, and remembers `path/to/template` as the export path. After editing, `/horizonqa export` writes the updated files under `<serverDir>/horizonqastructures/path/to/template.*`.
 
