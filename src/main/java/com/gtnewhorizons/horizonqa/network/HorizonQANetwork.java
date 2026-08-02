@@ -14,5 +14,12 @@ public final class HorizonQANetwork {
 
     public static void init() {
         CHANNEL.registerMessage(WandLabelMessage.Handler.class, WandLabelMessage.class, 0, Side.SERVER);
+        CHANNEL.registerMessage(WandSelectionMoveMessage.Handler.class, WandSelectionMoveMessage.class, 1, Side.SERVER);
+        CHANNEL.registerMessage(
+            WandSelectionResizeMessage.Handler.class,
+            WandSelectionResizeMessage.class,
+            2,
+            Side.SERVER);
+        CHANNEL.registerMessage(WandLabelMoveMessage.Handler.class, WandLabelMoveMessage.class, 3, Side.SERVER);
     }
 }

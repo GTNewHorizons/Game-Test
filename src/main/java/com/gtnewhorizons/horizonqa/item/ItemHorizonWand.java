@@ -213,6 +213,7 @@ public class ItemHorizonWand extends Item {
 
         list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.surface_mode"));
         list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.label_key"));
+        list.add(StatCollector.translateToLocal("horizonqa.wand.tooltip.freecam_key"));
     }
 
     public static NBTTagCompound getOrCreateNBT(ItemStack stack) {
@@ -319,6 +320,47 @@ public class ItemHorizonWand extends Item {
         return true;
     }
 
+    /** Moves one named label by one block along a single axis without changing the selection. */
+    public static boolean moveLabel(ItemStack stack, String name, int dx, int dy, int dz) {
+        if (stack == null || !stack.hasTagCompound()
+            || Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1
+            || !isValidLabelName(name)) {
+            return false;
+        }
+        NBTTagCompound root = stack.getTagCompound();
+        if (!root.hasKey(TAG_LABELS)) return false;
+        NBTTagCompound labels = root.getCompoundTag(TAG_LABELS);
+        if (!labels.hasKey(name)) return false;
+
+        NBTTagCompound label = labels.getCompoundTag(name);
+        int x = label.getInteger(TAG_LABEL_X);
+        int y = label.getInteger(TAG_LABEL_Y);
+        int z = label.getInteger(TAG_LABEL_Z);
+        if (!canMoveCoordinate(x, dx, -30_000_000, 30_000_000) || !canMoveCoordinate(y, dy, 0, 255)
+            || !canMoveCoordinate(z, dz, -30_000_000, 30_000_000)) {
+            return false;
+        }
+
+        int movedX = x + dx;
+        int movedY = y + dy;
+        int movedZ = z + dz;
+        for (String otherName : labels.func_150296_c()) {
+            if (name.equals(otherName)) continue;
+            NBTTagCompound other = labels.getCompoundTag(otherName);
+            if (other.getInteger(TAG_LABEL_X) == movedX && other.getInteger(TAG_LABEL_Y) == movedY
+                && other.getInteger(TAG_LABEL_Z) == movedZ) {
+                return false;
+            }
+        }
+
+        label.setInteger(TAG_LABEL_X, movedX);
+        label.setInteger(TAG_LABEL_Y, movedY);
+        label.setInteger(TAG_LABEL_Z, movedZ);
+        labels.setTag(name, label);
+        root.setTag(TAG_LABELS, labels);
+        return true;
+    }
+
     public static int clearLabels(ItemStack stack) {
         int count = labelCount(stack);
         if (stack != null && stack.hasTagCompound()) {
@@ -331,6 +373,108 @@ public class ItemHorizonWand extends Item {
     public static boolean hasCompleteSelection(ItemStack stack) {
         NBTTagCompound nbt = stack != null ? stack.getTagCompound() : null;
         return nbt != null && nbt.getBoolean(TAG_POS1_SET) && nbt.getBoolean(TAG_POS2_SET);
+    }
+
+    /**
+     * Moves a complete wand selection and all of its labels by one block along a single axis.
+     *
+     * @return {@code true} when the selection was moved, or {@code false} for an incomplete selection, an invalid
+     *         offset, or a move outside Minecraft's coordinate limits
+     */
+    public static boolean moveSelection(ItemStack stack, int dx, int dy, int dz) {
+        if (!hasCompleteSelection(stack) || Math.abs(dx) + Math.abs(dy) + Math.abs(dz) != 1) {
+            return false;
+        }
+
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (!canMoveCoordinate(nbt.getInteger(TAG_POS1_X), dx, -30_000_000, 30_000_000)
+            || !canMoveCoordinate(nbt.getInteger(TAG_POS1_Y), dy, 0, 255)
+            || !canMoveCoordinate(nbt.getInteger(TAG_POS1_Z), dz, -30_000_000, 30_000_000)
+            || !canMoveCoordinate(nbt.getInteger(TAG_POS2_X), dx, -30_000_000, 30_000_000)
+            || !canMoveCoordinate(nbt.getInteger(TAG_POS2_Y), dy, 0, 255)
+            || !canMoveCoordinate(nbt.getInteger(TAG_POS2_Z), dz, -30_000_000, 30_000_000)) {
+            return false;
+        }
+
+        NBTTagCompound labels = nbt.hasKey(TAG_LABELS) ? nbt.getCompoundTag(TAG_LABELS) : null;
+        if (labels != null) {
+            for (String name : labels.func_150296_c()) {
+                NBTTagCompound label = labels.getCompoundTag(name);
+                if (!canMoveCoordinate(label.getInteger(TAG_LABEL_X), dx, -30_000_000, 30_000_000)
+                    || !canMoveCoordinate(label.getInteger(TAG_LABEL_Y), dy, 0, 255)
+                    || !canMoveCoordinate(label.getInteger(TAG_LABEL_Z), dz, -30_000_000, 30_000_000)) {
+                    return false;
+                }
+            }
+        }
+
+        nbt.setInteger(TAG_POS1_X, nbt.getInteger(TAG_POS1_X) + dx);
+        nbt.setInteger(TAG_POS1_Y, nbt.getInteger(TAG_POS1_Y) + dy);
+        nbt.setInteger(TAG_POS1_Z, nbt.getInteger(TAG_POS1_Z) + dz);
+        nbt.setInteger(TAG_POS2_X, nbt.getInteger(TAG_POS2_X) + dx);
+        nbt.setInteger(TAG_POS2_Y, nbt.getInteger(TAG_POS2_Y) + dy);
+        nbt.setInteger(TAG_POS2_Z, nbt.getInteger(TAG_POS2_Z) + dz);
+
+        if (labels != null) {
+            for (String name : labels.func_150296_c()) {
+                NBTTagCompound label = labels.getCompoundTag(name);
+                label.setInteger(TAG_LABEL_X, label.getInteger(TAG_LABEL_X) + dx);
+                label.setInteger(TAG_LABEL_Y, label.getInteger(TAG_LABEL_Y) + dy);
+                label.setInteger(TAG_LABEL_Z, label.getInteger(TAG_LABEL_Z) + dz);
+                labels.setTag(name, label);
+            }
+            nbt.setTag(TAG_LABELS, labels);
+        }
+        return true;
+    }
+
+    /**
+     * Resizes one side of a complete wand selection by one block. A positive {@code amount} moves the requested side
+     * outward and a negative amount moves it inward. Labels remain at their world coordinates.
+     *
+     * @return {@code true} when the side was resized, or {@code false} for invalid input, an incomplete selection, a
+     *         side outside Minecraft's coordinate limits, or an attempt to shrink below one block
+     */
+    public static boolean resizeSelection(ItemStack stack, int sideX, int sideY, int sideZ, int amount) {
+        if (!hasCompleteSelection(stack) || Math.abs(sideX) + Math.abs(sideY) + Math.abs(sideZ) != 1
+            || Math.abs(amount) != 1) {
+            return false;
+        }
+
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (sideX != 0) {
+            return resizeAxis(nbt, TAG_POS1_X, TAG_POS2_X, sideX > 0, amount, -30_000_000, 30_000_000);
+        }
+        if (sideY != 0) {
+            return resizeAxis(nbt, TAG_POS1_Y, TAG_POS2_Y, sideY > 0, amount, 0, 255);
+        }
+        return resizeAxis(nbt, TAG_POS1_Z, TAG_POS2_Z, sideZ > 0, amount, -30_000_000, 30_000_000);
+    }
+
+    private static boolean resizeAxis(NBTTagCompound nbt, String pos1Tag, String pos2Tag, boolean positiveSide,
+        int amount, int worldMin, int worldMax) {
+        int pos1 = nbt.getInteger(pos1Tag);
+        int pos2 = nbt.getInteger(pos2Tag);
+        int boundary = positiveSide ? Math.max(pos1, pos2) : Math.min(pos1, pos2);
+        int opposite = positiveSide ? Math.min(pos1, pos2) : Math.max(pos1, pos2);
+        int coordinateOffset = positiveSide ? amount : -amount;
+        if (!canMoveCoordinate(boundary, coordinateOffset, worldMin, worldMax)) {
+            return false;
+        }
+
+        int resized = boundary + coordinateOffset;
+        if ((positiveSide && resized < opposite) || (!positiveSide && resized > opposite)) {
+            return false;
+        }
+
+        boolean resizePos1 = positiveSide ? pos1 > pos2 : pos1 <= pos2;
+        nbt.setInteger(resizePos1 ? pos1Tag : pos2Tag, resized);
+        return true;
+    }
+
+    private static boolean canMoveCoordinate(int coordinate, int offset, int min, int max) {
+        long moved = (long) coordinate + offset;
+        return moved >= min && moved <= max;
     }
 
     public static boolean isInsideSelection(ItemStack stack, int x, int y, int z) {

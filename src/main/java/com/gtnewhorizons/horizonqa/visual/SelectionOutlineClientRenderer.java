@@ -106,7 +106,9 @@ public final class SelectionOutlineClientRenderer {
             renderWandAxis(wandTarget[0] + 0.5, wandTarget[1] + 0.5, wandTarget[2] + 0.5);
         }
 
-        renderTargetIndicator(wandTarget);
+        if (mc.currentScreen == null) {
+            renderTargetIndicator(wandTarget);
+        }
 
         if (pos1Set && (pending || pos2Set)) {
             int bx1 = nbt.getInteger(ItemHorizonWand.TAG_POS1_X);

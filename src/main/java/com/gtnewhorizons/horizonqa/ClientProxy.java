@@ -9,6 +9,7 @@ import com.gtnewhorizons.horizonqa.visual.VisualManager;
 import com.gtnewhorizons.horizonqa.visual.WandHudOverlay;
 import com.gtnewhorizons.horizonqa.visual.WandLabelInput;
 import com.gtnewhorizons.horizonqa.visual.WandLabelRenderer;
+import com.gtnewhorizons.horizonqa.visual.editor.WandFreecamController;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -20,9 +21,14 @@ public class ClientProxy extends CommonProxy {
         super.init(event);
         if (!HorizonQAProperties.interactiveFeaturesEnabled()) return;
         WandLabelInput.registerKeyBinding();
+        WandFreecamController.registerKeyBinding();
         FMLCommonHandler.instance()
             .bus()
             .register(new WandLabelInput());
+        FMLCommonHandler.instance()
+            .bus()
+            .register(WandFreecamController.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(WandFreecamController.INSTANCE);
         MinecraftForge.EVENT_BUS.register(new SelectionOutlineClientRenderer());
         MinecraftForge.EVENT_BUS.register(new GameTestOverlayRenderer());
         MinecraftForge.EVENT_BUS.register(new WandHudOverlay());

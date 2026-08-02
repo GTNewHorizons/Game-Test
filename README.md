@@ -25,7 +25,7 @@ public static void doesNotFormWithoutCoils(GameTestHelper helper) {
 * **Structure Support**: Tools to export, place, and verify multiblock structures via JSON or NBT.
 * **Visual Feedback**: In-game overlays, beacons, and ghost blocks to identify test failures visually.
 * **CI/CD Integration**: Generates JUnit-compatible XML reports for automated build pipelines.
-* **Horizon Wand**: An in-game tool to select structures and label important coordinates for tests.
+* **Horizon Wand**: An in-game editor with a free-camera viewport, cursor-aligned move and resize gizmos, and visual label creation, renaming, movement, and inspection for authoring test structures.
 
 ## Usage
 
