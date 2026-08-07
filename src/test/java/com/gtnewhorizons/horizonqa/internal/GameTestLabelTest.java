@@ -39,7 +39,7 @@ public class GameTestLabelTest {
 
         CaseResult result = CaseResult.from(instance);
         assertEquals(CaseResult.Status.ERROR, result.status());
-        assertEquals(LabelResolutionException.KIND, result.failureType());
+        assertEquals("LABEL_ERROR", result.failureType());
         assertTrue(
             result.failureMessage()
                 .contains("Unknown label 'missing'"));

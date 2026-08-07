@@ -5,9 +5,9 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 @Experimental
 public class LabelResolutionException extends GameTestInfrastructureException {
 
-    public static final String KIND = "LABEL_ERROR";
+    public static final String ERROR_KIND = "LABEL_ERROR";
 
     public LabelResolutionException(String message) {
-        super(KIND, message);
+        super(ERROR_KIND, message);
     }
 }
