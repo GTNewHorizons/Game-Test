@@ -17,6 +17,8 @@ import gregtech.api.util.GTRecipeBuilder;
 @GameTestHolder(ExamplesMod.MODID)
 public class GTNHExampleTests {
 
+    private GTNHExampleTests() {}
+
     @GameTest(template = "ebf", timeoutTicks = 1500, batch = "gtnh")
     public static void testTitaniumSmelting(GameTestHelper helper) {
         GTNHGameTestHelper gtnh = helper.gtnh();

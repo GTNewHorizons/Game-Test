@@ -21,6 +21,8 @@ import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 @GameTestHolder(ExamplesMod.MODID)
 public class HelperApiTests {
 
+    private HelperApiTests() {}
+
     @BeforeBatch("")
     public static void setup() {}
 

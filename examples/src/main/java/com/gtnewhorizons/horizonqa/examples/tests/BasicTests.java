@@ -10,6 +10,8 @@ import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 @GameTestHolder(ExamplesMod.MODID)
 public class BasicTests {
 
+    private BasicTests() {}
+
     @BeforeBatch("")
     public static void setupBatch() {}
 

@@ -6,6 +6,8 @@ import net.minecraftforge.common.config.Configuration;
 
 public class Config {
 
+    private Config() {}
+
     public static String greeting = "Hello World";
 
     public static void synchronizeConfiguration(File configFile) {

@@ -19,6 +19,8 @@ import com.gtnewhorizons.horizonqa.structure.StructureExporter;
 @GameTestHolder(ExamplesMod.MODID)
 public class StructureTests {
 
+    private StructureTests() {}
+
     @GameTest(template = "single_stone", timeoutTicks = 20)
     public static void singleStonePresent(GameTestHelper helper) {
         helper.assertBlockPresent(Blocks.stone, "stone");
