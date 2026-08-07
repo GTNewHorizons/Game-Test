@@ -485,6 +485,7 @@ public class InteractiveTestSession {
     }
 
     private void recordTemplateSetupFailure(GameTestDefinition def, Throwable error, CellRecord cell) {
+        if (def == null) throw new IllegalArgumentException("test definition must not be null");
         String message = error != null ? error.getMessage() : null;
         if (message == null || message.isEmpty()) {
             message = "Template setup failed";

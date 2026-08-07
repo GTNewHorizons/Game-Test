@@ -29,6 +29,12 @@ public class StructurePlacerTest {
     }
 
     @Test
+    public void placedSizeRequiresTemplate() {
+        assertThrows(NullPointerException.class, () -> StructurePlacer.placedSizeX(null, 0));
+        assertThrows(NullPointerException.class, () -> StructurePlacer.placedSizeZ(null, 0));
+    }
+
+    @Test
     public void exportPathValidationAllowsNestedPathsButRejectsTraversal() {
         assertTrue(StructureExporter.isValidTemplatePath("single_stone"));
         assertTrue(StructureExporter.isValidTemplatePath("machines/ebf.v2"));

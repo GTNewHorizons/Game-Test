@@ -70,16 +70,10 @@ public final class StructurePlacer {
     }
 
     public static int placedSizeX(HybridStructureTemplate template, int rotation) {
-        if (template == null) {
-            return 0;
-        }
         return placedSizeX(template.getSizeX(), template.getSizeZ(), normalizeRotation(rotation));
     }
 
     public static int placedSizeZ(HybridStructureTemplate template, int rotation) {
-        if (template == null) {
-            return 0;
-        }
         return placedSizeZ(template.getSizeX(), template.getSizeZ(), normalizeRotation(rotation));
     }
 

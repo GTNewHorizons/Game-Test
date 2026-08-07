@@ -209,9 +209,6 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
         if (fatalIssues(issues) > 0) {
             return true;
         }
-        if (cases == null) {
-            return false;
-        }
         for (CaseResult result : cases) {
             if (result.infrastructureError() || result.incomplete()) {
                 return true;
@@ -222,9 +219,6 @@ public record RunResult(String mode, List<CaseResult> cases, List<IssueResult> i
 
     private static long fatalIssues(List<IssueResult> issues) {
         long count = 0;
-        if (issues == null) {
-            return count;
-        }
         for (IssueResult issue : issues) {
             if (issue.fatalInCi()) count++;
         }
