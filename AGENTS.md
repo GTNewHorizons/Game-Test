@@ -3,6 +3,7 @@
 ## Non-negotiable constraints
 
 - Treat [the design principles](docs/contributing/principles.md) and [clean-room policy](docs/contributing/legal.md) as hard constraints. Tests exercise the real server/GT behavior: mock supply, not validation; address fixtures by labels, wait on state rather than fixed ticks, and clean every global mutation. Never consult or copy decompiled modern Minecraft code.
+- Prefer the least amount of code that remains clear and maintainable. Make intent explicit through precise names, small focused methods, and straightforward structure; add comments only when that intent or an essential constraint cannot be expressed clearly in the code itself.
 - Minecraft 1.7.10 still runs Java 8 bytecode. Jabel permits modern syntax, not post-Java-8 JDK APIs; annotate every `record` with `@Desugar`. `Tags.java` is Gradle-generated—do not add or edit it.
 - Keep common/dedicated-server load paths free of eager `net.minecraft.client` and LWJGL references; client registration belongs behind `ClientProxy` or a narrow `@SideOnly(CLIENT)` method. A package name is not proof of side (`visual.SelectionBoxRenderer` is server-side).
 - Prefer `GTAdapter` for version-sensitive GregTech internals. A GT5u bump must audit both `GT5UnofficialAdapter` and the direct-touch `api/gt` facades, then run them in-game; compilation cannot catch reflective or linkage mismatches.

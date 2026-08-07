@@ -1,11 +1,11 @@
 ---
 title: Design principles
-description: Eight constraints that keep Horizon-QA tests honest, portable, and diagnosable.
+description: Nine constraints that keep Horizon-QA code and tests clear, honest, portable, and diagnosable.
 ---
 
 # Design principles
 
-These eight constraints exist to prevent the failure modes that quietly ruin mod testing infrastructure: tests that pass for the wrong reasons, tests that are brittle to refactors, and failures that tell you nothing useful.
+These nine constraints exist to prevent the failure modes that quietly ruin mod testing infrastructure: code that obscures its intent, tests that pass for the wrong reasons, tests that are brittle to refactors, and failures that tell you nothing useful.
 
 Reference this document in PR reviews. If a contribution conflicts with one of these, cite the number and explain why the trade-off is justified.
 
@@ -46,3 +46,9 @@ See [Package layout](../reference/package-layout.md).
 A passing test is cheap. **Every failure must be diagnosable from the JUnit XML alone**: what went in, what state the machine was in, what was expected versus observed, and the event sequence leading up to the failure. If a contributor cannot identify the root cause from the XML report, the failure output is a bug. Fix it before merging the feature.
 
 See [Test event log](../reference/events.md) and [CI and JUnit reports](../guide/ci.md).
+
+## 9. Prefer the smallest clear implementation
+
+The best implementation is the least amount of code that remains correct, clear, and maintainable. Prefer precise names, small focused methods, and straightforward structure over extra abstraction or explanation.
+
+Comments are for intent or constraints that the code cannot express clearly. Do not use them to restate behavior that better method and variable names can communicate. Before adding a comment that explains what code does, first make the code explain itself; retain the comment only when important context would otherwise be lost.
