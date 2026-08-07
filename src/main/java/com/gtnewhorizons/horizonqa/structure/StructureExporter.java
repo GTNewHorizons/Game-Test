@@ -37,7 +37,7 @@ public final class StructureExporter {
 
     private static final String KEY_SEQUENCE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final String ENTITIES_KEY = "entities";
-    private static final String TEMPLATE_PATH_PATTERN = "[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*";
+    private static final String TEMPLATE_PATH_PATTERN = "[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*+";
 
     public static final class ExportResult {
 
