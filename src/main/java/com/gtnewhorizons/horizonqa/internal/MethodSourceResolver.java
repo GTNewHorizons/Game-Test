@@ -5,9 +5,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.BaseStream;
 import java.util.stream.IntStream;
@@ -251,7 +253,31 @@ final class MethodSourceResolver {
     }
 
     @Desugar
-    record ResolvedArguments(String name, int ordinal, Object[] arguments) {}
+    record ResolvedArguments(String name, int ordinal, Object[] arguments) {
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) return true;
+            if (!(other instanceof ResolvedArguments that)) return false;
+            return ordinal == that.ordinal && Objects.equals(name, that.name)
+                && Arrays.deepEquals(arguments, that.arguments);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Objects.hash(name, ordinal) + Arrays.deepHashCode(arguments);
+        }
+
+        @Override
+        public String toString() {
+            return "ResolvedArguments[name=" + name
+                + ", ordinal="
+                + ordinal
+                + ", arguments="
+                + Arrays.deepToString(arguments)
+                + ']';
+        }
+    }
 
     static final class MethodSourceException extends Exception {
 

@@ -64,6 +64,22 @@ public class MethodSourceResolverTest {
     }
 
     @Test
+    public void resolvedArgumentsValueMethodsUseNestedArrayContents() {
+        ResolvedArguments first = new ResolvedArguments(
+            "arrays",
+            2,
+            new Object[] { new String[] { "water", "lava" }, new int[] { 1, 2 } });
+        ResolvedArguments same = new ResolvedArguments(
+            "arrays",
+            2,
+            new Object[] { new String[] { "water", "lava" }, new int[] { 1, 2 } });
+
+        assertEquals(first, same);
+        assertEquals(first.hashCode(), same.hashCode());
+        assertEquals("ResolvedArguments[name=arrays, ordinal=2, arguments=[[water, lava], [1, 2]]]", first.toString());
+    }
+
+    @Test
     public void rawObjectArrayRowsAreRejectedEvenForOneArrayParameter() throws Exception {
         MethodSourceException error = expectFailure(InvalidSources.class, "rawArrayRows");
 
