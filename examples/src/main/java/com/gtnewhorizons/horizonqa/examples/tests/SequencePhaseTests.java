@@ -14,6 +14,8 @@ import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 @GameTestHolder(ExamplesMod.MODID)
 public class SequencePhaseTests {
 
+    private SequencePhaseTests() {}
+
     @BeforeBatch("")
     public static void setup() {}
 

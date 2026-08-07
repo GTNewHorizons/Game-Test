@@ -13,6 +13,8 @@ import com.gtnewhorizons.horizonqa.examples.ExamplesMod;
 @GameTestHolder(ExamplesMod.MODID)
 public class ParameterizedTests {
 
+    private ParameterizedTests() {}
+
     @GameTest(timeoutTicks = 20)
     @MethodSource("voltageTiers")
     public static void voltageTierHasPositiveEu(GameTestHelper helper, int voltage, String tierName) {
