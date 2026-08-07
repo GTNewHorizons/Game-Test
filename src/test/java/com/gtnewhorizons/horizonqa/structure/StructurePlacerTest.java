@@ -46,6 +46,16 @@ public class StructurePlacerTest {
     }
 
     @Test
+    public void exportPathValidationHandlesDeeplyNestedPaths() {
+        StringBuilder path = new StringBuilder("root");
+        for (int i = 0; i < 10_000; i++) {
+            path.append("/segment");
+        }
+
+        assertTrue(StructureExporter.isValidTemplatePath(path.toString()));
+    }
+
+    @Test
     public void rotationMapsSourceCoordinatesIntoRotatedBounds() {
         assertRotated(0, 0, 0, 0, 0);
         assertRotated(0, 1, 2, 1, 2);
