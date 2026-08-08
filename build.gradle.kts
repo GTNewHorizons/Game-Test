@@ -1,6 +1,33 @@
 
 plugins {
     id("com.gtnewhorizons.gtnhconvention")
+    jacoco
+    id("org.sonarqube") version "7.3.1.8318"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required.set(true)
+        csv.required.set(false)
+        html.required.set(true)
+    }
+}
+
+tasks.named("sonar") {
+    dependsOn(tasks.jacocoTestReport)
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "GTNewHorizons_Horizon-QA")
+        property("sonar.organization", "gtnewhorizons")
+
+        // The examples module is exercised inside Minecraft by runServer, outside the unit-test JVM
+        // instrumented by JaCoCo. Keep it in static analysis without treating it as uncovered unit-test code.
+        property("sonar.coverage.exclusions", "examples/src/main/**")
+    }
 }
 
 // Configure Javadoc task to prevent GitHub Actions from failing
