@@ -40,7 +40,7 @@ jobs:
           cache: 'pip'
 
       - name: Install MkDocs
-        run: pip install -r requirements.txt
+        run: "pip install --only-binary=:all: --require-hashes -r requirements.txt"
 
       - name: Build MkDocs (outputs to site/)
         run: mkdocs build --strict

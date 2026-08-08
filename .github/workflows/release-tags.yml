@@ -11,4 +11,6 @@ permissions:
 jobs:
   release-tags:
     uses: GTNewHorizons/GTNH-Actions-Workflows/.github/workflows/release-tags.yml@master
-    secrets: inherit
+    secrets:
+      MAVEN_USER: ${{ secrets.MAVEN_USER }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
