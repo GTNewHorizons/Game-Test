@@ -9,7 +9,6 @@ on:
 jobs:
   build-and-test:
     uses: GTNewHorizons/GTNH-Actions-Workflows/.github/workflows/build-and-test.yml@master
-    secrets: inherit
 
   sonar:
     name: SonarCloud
@@ -38,7 +37,7 @@ jobs:
             25
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
 
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
@@ -72,7 +71,7 @@ jobs:
           cache: pip
 
       - name: Install documentation dependencies
-        run: pip install -r requirements.txt
+        run: "pip install --only-binary=:all: --require-hashes -r requirements.txt"
 
       - name: Build documentation
         run: mkdocs build --strict

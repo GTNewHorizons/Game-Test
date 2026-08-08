@@ -1,0 +1,4 @@
+# Direct documentation dependencies. Regenerate requirements.txt with:
+# uv pip compile requirements.in --python-version 3.13 --generate-hashes --output-file requirements.txt
+mkdocs==1.6.1
+mkdocs-material==9.7.6
