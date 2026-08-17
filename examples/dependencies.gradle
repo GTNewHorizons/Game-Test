@@ -6,7 +6,7 @@ dependencies {
     devOnlyNonPublishable(project(":"))
 
     compileOnly('com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu2:dev')
-    compileOnly('com.ruling_0:MaterialLib:0.2.0-mu:dev')
+    compileOnly('com.ruling_0:MaterialLib:0.9.0-mu:dev')
 
     runtimeOnlyNonPublishable('com.github.GTNewHorizons:NewHorizonsCoreMod:2.9.8-mu.82+7133547a58:dev')
     runtimeOnlyNonPublishable('com.github.GTNewHorizons:GT5-Unofficial:5.99.99-mu2:dev')
