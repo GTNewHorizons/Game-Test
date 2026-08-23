@@ -451,7 +451,15 @@ public class InteractiveTestSession {
     }
 
     private static void clearCell(WorldServer world, CellRecord cell) {
-        GridSweeper.clearAndNotify(world, cell.minX, cell.minY, cell.minZ, cell.maxX, cell.maxY, cell.maxZ);
+        int margin = GameTestGridLayout.INTER_CELL_GAP;
+        GridSweeper.clearAndNotify(
+            world,
+            cell.minX - margin,
+            cell.minY - margin,
+            cell.minZ - margin,
+            cell.maxX + margin,
+            cell.maxY + margin,
+            cell.maxZ + margin);
     }
 
     static HybridStructureTemplate loadTemplate(GameTestDefinition def) throws IOException {
