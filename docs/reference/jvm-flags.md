@@ -49,6 +49,7 @@ Examples:
 | `horizonqa.world`      | `void` / `normal`  | `void` in `ci`, otherwise `normal`                        |
 | `horizonqa.autoRun`    | `true` / `false`   | `true` in `ci`, otherwise `false`                         |
 | `horizonqa.stopServer` | `true` / `false`   | `true` in `ci` when autorun is enabled, otherwise `false` |
+| `horizonqa.turbo`      | integer `1`–`100`  | `1`                                                       |
 | `horizonqa.gridOrigin` | `x,y,z`            | `0,64,0`                                                  |
 
 `horizonqa.world`
@@ -59,6 +60,11 @@ Examples:
 
 `horizonqa.stopServer`
 :   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
+
+`horizonqa.turbo`
+:   Runs up to this many server ticks for each normal 20 TPS accumulator slot while a reported batch is active in `ci` mode. `1` leaves the normal tick rate unchanged. Turbo stops when the reported batch finishes; interactive test sessions and server time outside that window keep the normal cadence. Tick-scheduled player/world autosaves and vanilla's `Can't keep up!` warning are suppressed only while turbo is active.
+
+    Every tick body still runs in order. Code that mixes ticks with wall-clock time can therefore behave differently under turbo, and a configured multiplier can still be limited by the CPU cost of a tick.
 
 `horizonqa.gridOrigin`
 :   Sets the absolute world coordinate where the test grid starts. Use `x,y,z`; `y` must be between `0` and `255`, and the full template height must still fit below the build limit. This affects both automatic and manual test placement.
@@ -77,6 +83,9 @@ Useful combinations:
 
 # Manual reported batches with CI overrides
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+
+# Ten times the normal tick target during the reported batch
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.turbo=10 --mcJvmArgs=-Dhorizonqa.reportDir=${PWD}/build/horizonqa
 ```
 
 ## `horizonqa.tests`

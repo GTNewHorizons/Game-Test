@@ -81,6 +81,8 @@ A normal test tick has two framework phases around Minecraft world logic:
 
 The test body itself runs before the first counted tick. Timeout is evaluated after the END phase of the final allowed tick, so END actions scheduled at `timeoutTicks` still run before timeout is reported.
 
+In `ci` mode, `horizonqa.turbo` may increase how many complete server ticks run per normal wall-clock tick slot while a reported batch is active. It does not change the phase ordering or omit tick bodies. The normal cadence resumes when all reported batches finish. See [JVM properties](../reference/jvm-flags.md#runtime-behavior-overrides) for its range and wall-clock caveat.
+
 See [Sequences and timing](../guide/sequences.md) for scheduling, bounded waits, and phase-ordering rules.
 
 ## GregTech time-warp

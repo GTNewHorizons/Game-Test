@@ -42,10 +42,12 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("I am " + HorizonQAMod.NAME + " at version " + Tags.VERSION);
         HorizonQAMod.LOG.info("Mode (-D{}): {}", HorizonQAProperties.MODE_PROPERTY, HorizonQAProperties.modeName());
         HorizonQAMod.LOG.info(
-            "Resolved Horizon-QA behavior: world={}, autoRun={}, stopServer={}, gridOrigin={}, interactiveFeatures={}",
+            "Resolved Horizon-QA behavior: world={}, autoRun={}, stopServer={}, turbo={}, gridOrigin={}, "
+                + "interactiveFeatures={}",
             HorizonQAProperties.worldPolicyName(),
             HorizonQAProperties.autoRunTests(),
             HorizonQAProperties.stopServerAfterRun(),
+            HorizonQAProperties.turboMultiplier(),
             HorizonQAProperties.gridOriginName(),
             HorizonQAProperties.interactiveFeaturesEnabled());
         if (HorizonQAProperties.hasModeError()) {
