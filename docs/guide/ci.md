@@ -48,7 +48,12 @@ Modes are presets. Override specific behavior when the workflow needs it:
 
 # Manual reported batches with CI overrides
 ./gradlew runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.autoRun=false -Dhorizonqa.reportDir=${PWD}/build/horizonqa"
+
+# Bounded tick acceleration during the reported batch
+./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.turbo=10 --mcJvmArgs=-Dhorizonqa.reportDir=${PWD}/build/horizonqa
 ```
+
+`horizonqa.turbo` accepts `1` through `100` and defaults to `1`. A value above `1` runs that many complete server tick bodies per normal tick slot only while a reported batch is active under CI server behavior. It suppresses tick-scheduled autosaves and `Can't keep up!` warnings during that window. It does not accelerate interactive test sessions or leave the server accelerated after the batch.
 
 ## Report files
 
@@ -124,6 +129,8 @@ Disable event recording only for performance investigations:
     "rawAutoRun": null,
     "stopServer": true,
     "rawStopServer": null,
+    "turbo": 1,
+    "rawTurbo": null,
     "gridOrigin": "0,64,0",
     "rawGridOrigin": null,
     "tests": null,

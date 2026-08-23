@@ -51,6 +51,8 @@ public final class StatusJsonReporter {
         configFirst = appendStringField(out, 2, "rawAutoRun", HorizonQAProperties.rawAutoRun(), configFirst);
         configFirst = appendBooleanField(out, 2, "stopServer", HorizonQAProperties.stopServerAfterRun(), configFirst);
         configFirst = appendStringField(out, 2, "rawStopServer", HorizonQAProperties.rawStopServer(), configFirst);
+        configFirst = appendNumberField(out, 2, "turbo", HorizonQAProperties.turboMultiplier(), configFirst);
+        configFirst = appendStringField(out, 2, "rawTurbo", HorizonQAProperties.rawTurbo(), configFirst);
         configFirst = appendStringField(out, 2, "gridOrigin", HorizonQAProperties.gridOriginName(), configFirst);
         configFirst = appendStringField(out, 2, "rawGridOrigin", HorizonQAProperties.rawGridOrigin(), configFirst);
         configFirst = appendStringField(out, 2, "tests", HorizonQAProperties.rawTests(), configFirst);
