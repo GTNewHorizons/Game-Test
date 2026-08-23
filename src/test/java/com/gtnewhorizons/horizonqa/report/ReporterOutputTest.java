@@ -185,6 +185,7 @@ public class ReporterOutputTest {
         assertTrue(json.contains("\"status\": \"error\""));
         assertTrue(json.contains("\"exitCode\": 2"));
         assertTrue(json.contains("\"configuration\": {"));
+        assertTrue(json.contains("\"turbo\": 1"));
         assertTrue(json.contains("\"counts\": {"));
         assertTrue(json.contains("\"selectedTests\": 0"));
         assertTrue(json.contains("\"diagnosticErrors\": 1"));
