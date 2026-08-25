@@ -205,23 +205,24 @@ Recommended CI and manual-report forms:
 
 ## Status JSON
 
-The status JSON is a concise machine-readable summary. Schema version `2` contains:
+The status JSON is a concise machine-readable summary. Schema version `3` contains:
 
 | Top-level field | Meaning                                                                        |
 |-----------------|--------------------------------------------------------------------------------|
-| `schemaVersion` | Integer schema version, currently `2`                                          |
+| `schemaVersion` | Integer schema version, currently `3`                                          |
 | `status`        | `passed`, `failed`, or `error`                                                 |
 | `exitCode`      | Process exit code Horizon-QA requests                                          |
 | `configuration` | Effective property values and defaults                                         |
 | `counts`        | Aggregate selected, passed, failed, timeout, skipped, optional, issue, and JUnit counts |
 | `reports`       | JUnit and status report paths                                                  |
 | `issues`        | Infrastructure/configuration/selection/reporting issues                        |
-| `tests`         | Per-test status and optional failure details                                   |
+| `tests`         | Per-test status, optional report output, and optional failure details           |
 
 Issue entries contain `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` / `stackTrace`.
 Test entries contain `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`, optional `parameters`
-for a parameterized case, optional `blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status`
-is `skipped`.
+for a parameterized case, optional `output` for parameter, warning, and event-log lines, optional
+`blockedByIssueId`, optional `failure`, or `skipReason` / `skipType` when `status` is `skipped`. The `output` field
+is omitted when empty.
 
 ## Exit codes
 

@@ -7,7 +7,7 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * Records exposing {@code TestEvent} carry the structured payload as their own record components; this
  * interface only contributes the fields that every reporter needs: a monotonic logical {@code tick}, a
  * coarse {@code category} for filtering, and a one-line {@code summary} suitable for direct inclusion in
- * a JUnit {@code <system-out>} block or a console tail.
+ * a JUnit {@code <system-out>} block, status JSON output array, or console tail.
  */
 @Experimental
 public interface TestEvent {
@@ -33,6 +33,7 @@ public interface TestEvent {
         public static final String SAFETY = "safety";
         public static final String FAILURE = "failure";
         public static final String DIAGNOSTIC = "diagnostic";
+        public static final String SEQUENCE = "sequence";
 
         private Category() {}
     }

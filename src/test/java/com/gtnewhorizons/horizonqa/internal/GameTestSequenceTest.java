@@ -14,7 +14,11 @@ import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
+import com.gtnewhorizons.horizonqa.api.LabelResolutionException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
+import com.gtnewhorizons.horizonqa.api.event.SequenceStepFinished;
+import com.gtnewhorizons.horizonqa.api.event.SequenceStepStarted;
+import com.gtnewhorizons.horizonqa.api.event.TestFinished;
 import com.gtnewhorizons.horizonqa.internal.GameTestSequence.SequenceStepSnapshot;
 import com.gtnewhorizons.horizonqa.internal.GameTestSequence.StepKind;
 import com.gtnewhorizons.horizonqa.internal.GameTestSequence.StepState;
@@ -71,6 +75,18 @@ public class GameTestSequenceTest {
         assertEquals(3, active.completedTick());
         assertEquals(3, active.attempts());
         assertSame(lastAssertion, active.lastAssertion());
+
+        List<?> events = instance.getRecorder()
+            .snapshot();
+        assertEquals(2, events.size());
+        SequenceStepStarted started = (SequenceStepStarted) events.get(0);
+        assertEquals("network becomes active", started.label());
+        assertEquals("WAIT_UNTIL", started.kind());
+        assertEquals("END", started.phase());
+        SequenceStepFinished finished = (SequenceStepFinished) events.get(1);
+        assertEquals("failed", finished.outcome());
+        assertEquals(3, finished.attempts());
+        assertEquals(3, finished.elapsedTicks());
     }
 
     @Test
@@ -107,6 +123,20 @@ public class GameTestSequenceTest {
             sequence.getSteps()
                 .get(1)
                 .completedTick());
+
+        List<?> events = instance.getRecorder()
+            .snapshot();
+        assertEquals(4, events.size());
+        assertTrue(events.get(0) instanceof SequenceStepStarted);
+        SequenceStepFinished waitFinished = (SequenceStepFinished) events.get(1);
+        assertEquals("completed", waitFinished.outcome());
+        assertEquals(2, waitFinished.attempts());
+        assertEquals(2, waitFinished.elapsedTicks());
+        assertTrue(events.get(2) instanceof SequenceStepStarted);
+        SequenceStepFinished executeFinished = (SequenceStepFinished) events.get(3);
+        assertEquals("completed", executeFinished.outcome());
+        assertEquals(1, executeFinished.attempts());
+        assertEquals(1, executeFinished.elapsedTicks());
     }
 
     @Test
@@ -285,6 +315,77 @@ public class GameTestSequenceTest {
         assertTrue(
             result.failureTrace()
                 .contains("network is inactive"));
+        assertTrue(
+            result.outputLines()
+                .stream()
+                .anyMatch(line -> line.contains("Failed sequence step 1/1 'network becomes active'")));
+    }
+
+    @Test
+    public void executeFailureKeepsOriginalCauseAndAddsStepContext() throws Exception {
+        GameTestInstance instance = instance("mod:SequenceTests.failingExecute", "failingExecute", 2);
+
+        instance.start(null);
+        tick(instance);
+
+        assertEquals(GameTestStatus.FAILED, instance.getStatus());
+        assertTrue(instance.getFailureCause() instanceof GameTestAssertException);
+        assertEquals(
+            "output is missing",
+            instance.getFailureCause()
+                .getMessage());
+        assertEquals(new TestPos(4, 5, 6), ((GameTestAssertException) instance.getFailureCause()).getPos());
+        assertTrue(
+            instance.getFailureContext()
+                .contains("validate crafted output"));
+
+        CaseResult result = CaseResult.from(instance);
+        assertTrue(
+            result.failureMessage()
+                .contains("Sequence step 1/1 \"validate crafted output\""));
+        assertTrue(
+            result.failureMessage()
+                .endsWith(": output is missing"));
+        assertTrue(
+            result.failureTrace()
+                .startsWith(instance.getFailureContext()));
+        assertTrue(
+            result.outputLines()
+                .stream()
+                .anyMatch(line -> line.contains("Failed sequence step 1/1 'validate crafted output'")));
+    }
+
+    @Test
+    public void sequenceInfrastructureFailureKeepsItsErrorKind() throws Exception {
+        GameTestInstance instance = instance("mod:SequenceTests.missingLabel", "missingLabel", 2);
+
+        instance.start(null);
+        tick(instance);
+
+        assertEquals(GameTestStatus.ERROR, instance.getStatus());
+        assertTrue(instance.getFailureCause() instanceof LabelResolutionException);
+        CaseResult result = CaseResult.from(instance);
+        assertEquals(LabelResolutionException.ERROR_KIND, result.failureType());
+        assertTrue(
+            result.failureMessage()
+                .contains("resolve fixture label"));
+    }
+
+    @Test
+    public void terminalStepFinishesBeforeTheTest() throws Exception {
+        GameTestInstance instance = instance("mod:SequenceTests.endingSequence", "endingSequence", 2);
+
+        instance.start(null);
+        tick(instance);
+
+        assertEquals(GameTestStatus.PASSED, instance.getStatus());
+        List<?> events = instance.getRecorder()
+            .snapshot();
+        assertEquals(6, events.size());
+        SequenceStepFinished terminalStep = (SequenceStepFinished) events.get(4);
+        assertEquals("succeed test", terminalStep.label());
+        assertEquals("completed", terminalStep.outcome());
+        assertTrue(events.get(5) instanceof TestFinished);
     }
 
     @Test
@@ -314,6 +415,24 @@ public class GameTestSequenceTest {
         public static void unboundedWait(GameTestHelper helper) {
             helper.startSequence()
                 .thenWaitUntil("network becomes active", () -> helper.fail("network is inactive"));
+        }
+
+        public static void failingExecute(GameTestHelper helper) {
+            helper.startSequence()
+                .thenExecute(
+                    "validate crafted output",
+                    () -> { throw new GameTestAssertException("output is missing", new TestPos(4, 5, 6)); });
+        }
+
+        public static void missingLabel(GameTestHelper helper) {
+            helper.startSequence()
+                .thenExecute("resolve fixture label", () -> helper.pos("missing"));
+        }
+
+        public static void endingSequence(GameTestHelper helper) {
+            helper.startSequence()
+                .thenExecute("observe state", () -> {})
+                .thenSucceed();
         }
     }
 }
