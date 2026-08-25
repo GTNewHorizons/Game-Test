@@ -4,7 +4,8 @@ import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
- * A sequence step completed or failed.
+ * A sequence step completed or failed. The human-readable summary omits timing for an immediate step,
+ * reports only elapsed ticks when attempts and ticks match, and otherwise reports both values.
  *
  * @param tick         logical event-log tick
  * @param index        one-based step index
@@ -26,17 +27,16 @@ public record SequenceStepFinished(int tick, int index, int totalSteps, String l
 
     @Override
     public String summary() {
-        return capitalize(outcome) + " sequence step "
-            + index
-            + '/'
-            + totalSteps
-            + " '"
-            + label
-            + "' after "
+        String summary = capitalize(outcome) + " sequence step " + index + '/' + totalSteps + " '" + label + "'";
+        if (attempts == 0 && elapsedTicks == 0) return summary + " without starting";
+        if (attempts == 1 && elapsedTicks == 1) return summary;
+        if (attempts == elapsedTicks) return summary + " after " + elapsedTicks + " ticks";
+        return summary + " after "
             + attempts
-            + " attempt(s) over "
+            + (attempts == 1 ? " attempt" : " attempts")
+            + " over "
             + elapsedTicks
-            + " tick(s)";
+            + (elapsedTicks == 1 ? " tick" : " ticks");
     }
 
     private static String capitalize(String value) {

@@ -153,8 +153,9 @@ also available through `getSteps()` and `getActiveStep()` for investigation tool
 
 Every step emits one `SequenceStepStarted` event when it first becomes active and one
 `SequenceStepFinished` event when it completes or fails. A wait that retries for many ticks still emits
-only that single pair; its finish event carries the total attempt count and elapsed outer-test ticks.
-Pending steps that never start do not emit a start event.
+only that single pair. Its finish event retains the total attempt count and elapsed outer-test ticks as
+structured fields, while its human-readable summary omits timing for immediate steps and shows only the
+elapsed ticks when the counts are equal. Pending steps that never start do not emit a start event.
 
 Use labels for stable, readable automation output. An unlabeled event falls back to its declaration
 source. Event lines are included in JUnit `<system-out>`, each status JSON test's optional `output` array,

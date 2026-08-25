@@ -27,6 +27,25 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 public class GameTestSequenceTest {
 
     @Test
+    public void finishedStepSummaryOnlyShowsUsefulTiming() {
+        assertEquals(
+            "Completed sequence step 1/1 'execute'",
+            new SequenceStepFinished(1, 1, 1, "execute", "completed", 1, 1).summary());
+        assertEquals(
+            "Completed sequence step 1/1 'wait' after 3 ticks",
+            new SequenceStepFinished(3, 1, 1, "wait", "completed", 3, 3).summary());
+        assertEquals(
+            "Failed sequence step 1/1 'pending' without starting",
+            new SequenceStepFinished(3, 1, 1, "pending", "failed", 0, 0).summary());
+        assertEquals(
+            "Completed sequence step 1/1 'spaced' after 2 attempts over 3 ticks",
+            new SequenceStepFinished(3, 1, 1, "spaced", "completed", 2, 3).summary());
+        assertEquals(
+            "Completed sequence step 1/1 'sparse' after 1 attempt over 2 ticks",
+            new SequenceStepFinished(2, 1, 1, "sparse", "completed", 1, 2).summary());
+    }
+
+    @Test
     public void boundedWaitFailsOnItsFinalAllowedTickAndRetainsAssertion() {
         GameTestInstance instance = new GameTestInstance(null, 0, 0, 0);
         GameTestSequence sequence = new GameTestSequence(instance);

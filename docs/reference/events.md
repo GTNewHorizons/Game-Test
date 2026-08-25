@@ -89,8 +89,8 @@ instance, so they do not emit test events.
 | `TickCallbackStateChanged` | A named callback is registered or actually changes enabled/removed state |
 
 Wait retries do not emit additional start events or one event per attempt. `SequenceStepFinished`
-contains the final outcome, attempts, and elapsed outer-test ticks. Unlabeled steps use their declaration
-source as the event label.
+contains the final outcome, attempts, and elapsed outer-test ticks. Unlabeled
+steps use their declaration source as the event label.
 
 Callback state is one of `registered-enabled`, `registered-disabled`, `enabled`, `disabled`, or
 `removed`. Idempotent state operations and attempts to change a removed handle emit nothing. Callback

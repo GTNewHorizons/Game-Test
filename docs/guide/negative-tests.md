@@ -30,11 +30,11 @@ helper.onEachTick("EBF remains unformed", () ->
 helper.succeedAtTimeout();
 ```
 
-| Call | Role |
-|---|---|
-| `onEachTick(String, Runnable)` | Registers a named, enabled callback and returns its `TickCallbackHandle` |
-| `assertFalse(ebf.isFormed(), ...)` | Fails immediately on the tick where the machine forms |
-| `succeedAtTimeout()` | Passes at the END of the final allowed tick if nothing failed |
+| Call                               | Role                                                                     |
+|------------------------------------|--------------------------------------------------------------------------|
+| `onEachTick(String, Runnable)`     | Registers a named, enabled callback and returns its `TickCallbackHandle` |
+| `assertFalse(ebf.isFormed(), ...)` | Fails immediately on the tick where the machine forms                    |
+| `succeedAtTimeout()`               | Passes at the END of the final allowed tick if nothing failed            |
 
 The final allowed tick is still observed before `succeedAtTimeout()` passes.
 
