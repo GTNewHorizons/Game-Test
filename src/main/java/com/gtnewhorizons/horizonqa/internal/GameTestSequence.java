@@ -225,20 +225,20 @@ public class GameTestSequence {
                     head.action.run();
                     long schedulingDelay = currentTick - head.scheduledTick;
                     head.complete(currentTick);
-                    recordFinished(head, "completed");
+                    recordFinished(head);
                     pendingSteps.poll();
                     shiftPendingSteps(schedulingDelay);
                 } catch (AssertionError e) {
                     head.lastAssertion = e;
                     if (head.deadlineTick >= 0 && currentTick >= head.deadlineTick) {
                         head.fail(currentTick);
-                        recordFinished(head, "failed");
+                        recordFinished(head);
                         throw new SequenceStepTimeoutException(head.snapshot(steps.size()), e);
                     }
                     break;
                 } catch (RuntimeException | Error e) {
                     head.fail(currentTick);
-                    recordFinished(head, "failed");
+                    recordFinished(head);
                     setFailureContext(head);
                     throw e;
                 }
@@ -246,7 +246,7 @@ public class GameTestSequence {
                 head.attempts++;
                 if (head.endsTest) {
                     head.complete(currentTick);
-                    recordFinished(head, "completed");
+                    recordFinished(head);
                     pendingSteps.poll();
                     head.action.run();
                     continue;
@@ -254,11 +254,11 @@ public class GameTestSequence {
                 try {
                     head.action.run();
                     head.complete(currentTick);
-                    recordFinished(head, "completed");
+                    recordFinished(head);
                     pendingSteps.poll();
                 } catch (RuntimeException | Error e) {
                     head.fail(currentTick);
-                    recordFinished(head, "failed");
+                    recordFinished(head);
                     setFailureContext(head);
                     throw e;
                 }
@@ -270,7 +270,7 @@ public class GameTestSequence {
         SequenceStep step = pendingSteps.peek();
         if (step == null || step.state == StepState.COMPLETED || step.state == StepState.FAILED) return;
         step.fail(currentTick);
-        recordFinished(step, "failed");
+        recordFinished(step);
     }
 
     private void recordStarted(SequenceStep step) {
@@ -290,9 +290,14 @@ public class GameTestSequence {
                     step.source.toString()));
     }
 
-    private void recordFinished(SequenceStep step, String outcome) {
+    private void recordFinished(SequenceStep step) {
         String displayLabel = displayLabel(step);
         long elapsedTicks = step.startedTick < 0 ? 0 : step.completedTick - step.startedTick + 1;
+        String outcome = switch (step.state) {
+            case COMPLETED -> "completed";
+            case FAILED -> "failed";
+            default -> throw new IllegalStateException("Cannot record unfinished sequence step");
+        };
         instance.getRecorder()
             .record(
                 () -> new SequenceStepFinished(
