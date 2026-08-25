@@ -18,5 +18,5 @@
 ## Proving a change
 
 - Run `./gradlew build` for compilation, unit tests, Checkstyle, and Spotless across the root and `examples`; this does **not** boot Minecraft.
-- Exercise Minecraft/Forge/GT, mixin/lifecycle, or structure behavior with a focused `./gradlew :examples:runServer --mcJvmArgs="-Dhorizonqa.mode=ci -Dhorizonqa.tests=<exact-test-id>"`. Pass every `horizonqa.*` flag through `--mcJvmArgs`, not bare Gradle `-D`. Interactive `/horizonqa run` bypasses batch ordering and hooks; use reported/CI mode when those matter. Some optional failing/timeout examples are intentional.
+- Exercise Minecraft/Forge/GT, mixin/lifecycle, or structure behavior with a focused `./gradlew :examples:runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.tests=<exact-test-id>`. Pass every `horizonqa.*` flag through its own `--mcJvmArgs`, not bare Gradle `-D`. Interactive `/horizonqa run` bypasses batch ordering and hooks; use reported/CI mode when those matter. Some optional failing/timeout examples are intentional.
 - For documentation run `mkdocs build --strict`; for public API changes also run `./gradlew javadoc`.
