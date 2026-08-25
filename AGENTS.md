@@ -12,7 +12,7 @@
 
 ## Public contracts
 
-- `docs/` is canonical; `README.md` is only a summary and `site/` is generated. Any author-facing API, annotation, event, command, JVM property, or structure-format change must update the matching surfaces: Javadoc for Java APIs, its MkDocs reference, and a focused runnable `examples/` case when applicable. New 0.x author APIs remain `@Experimental`; add new pages to `mkdocs.yml`.
+- `docs/` is canonical; `README.md` is only a summary and `site/` is generated. Any author-facing API, annotation, event, command, JVM property, or structure-format change must update the matching surfaces: Javadoc for Java APIs, its MkDocs reference, and a focused runnable `examples/` case when applicable. Add new pages to `mkdocs.yml`.
 - Results are one external protocol from `CaseResult`/`IssueResult` through `RunResult` to console, JUnit XML, and status JSON. Optional failures remain exit `0`/JUnit-skipped, required failures or timeouts exit `1`, and infrastructure/incomplete/reporting errors exit `2`; update all reporters, tests, and docs together, and bump `schemaVersion` for breaking JSON shape or meaning changes.
 
 ## Proving a change

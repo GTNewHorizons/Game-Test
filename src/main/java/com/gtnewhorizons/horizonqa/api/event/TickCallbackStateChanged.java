@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * A named per-tick callback was registered or changed state.
@@ -11,7 +10,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * @param state {@code registered-enabled}, {@code registered-disabled}, {@code enabled},
  *              {@code disabled}, or {@code removed}
  */
-@Experimental
 @Desugar
 public record TickCallbackStateChanged(int tick, String name, String state) implements TestEvent {
 

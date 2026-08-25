@@ -7,7 +7,6 @@ import net.minecraftforge.fluids.IFluidHandler;
 
 import com.gtnewhorizons.horizonqa.api.GameTestAssertException;
 import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.EUSupplyJobRegistered;
 import com.gtnewhorizons.horizonqa.api.event.HatchFilled;
 import com.gtnewhorizons.horizonqa.internal.TestEventRecorder;
@@ -20,7 +19,6 @@ import gregtech.api.metatileentity.implementations.MTEHatchMultiInput;
  * View of a hatch tile resolved from a controller. Fluid methods use the meta tile entity as {@link IFluidHandler},
  * same idea as {@link GTNHGameTestHelper#fillHatch}.
  */
-@Experimental
 public final class Hatch {
 
     private final IGregTechTileEntity te;

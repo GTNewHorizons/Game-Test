@@ -1,7 +1,5 @@
 package com.gtnewhorizons.horizonqa.api;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /**
  * Controls a callback registered through {@link GameTestHelper#onEachTick(String, Runnable)} or
  * {@link GameTestHelper#onEachTickDisabled(String, Runnable)}.
@@ -12,7 +10,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * effect. Actual state changes are recorded in the test event log. Changes take effect before the next
  * attempt to invoke the callback, including a callback later in the current END-phase pass.
  */
-@Experimental
 public interface TickCallbackHandle {
 
     /** Enable this callback if it has not been removed. */
