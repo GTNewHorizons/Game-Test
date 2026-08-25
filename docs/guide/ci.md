@@ -113,11 +113,11 @@ Disable event recording only for performance investigations:
 
 ## Status JSON schema
 
-`horizonqa-result.json` is the compact automation surface. Schema version `2` has this top-level shape:
+`horizonqa-result.json` is the compact automation surface. Schema version `3` has this top-level shape:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "status": "passed",
   "exitCode": 0,
   "configuration": {
@@ -167,10 +167,12 @@ Disable event recording only for performance investigations:
 
 Each `issues[]` entry contains `id`, `kind`, `source`, `name`, `message`, `fatalInCi`, and optional `details` /
 `stackTrace`. Each `tests[]` entry contains `id`, `classname`, `name`, `status`, `required`, `ticks`, `timeSeconds`,
-optional `parameters` for a parameterized case, optional `blockedByIssueId`, optional `failure` details, or
-`skipReason` / `skipType` for an intentional skip.
+optional `parameters` for a parameterized case, optional `output` lines, optional `blockedByIssueId`, optional
+`failure` details, or `skipReason` / `skipType` for an intentional skip.
 
-Schema version `2` adds the `skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
+Schema version `3` adds the per-test `output` array. It contains the same parameter, warning, and ordered event
+lines used for JUnit `<system-out>`; the field is omitted when there is no output. Schema version `2` added the
+`skipped` count, the per-test `skipped` status, and `skipReason` / `skipType`.
 
 Status values are:
 

@@ -149,7 +149,7 @@ public final class Multiblock {
     public void assertNeverForms(String message) {
         assertNotFormed(message);
         helper.base()
-            .onEachTick(() -> {
+            .onEachTick("multiblock never forms", () -> {
                 if (isFormed()) {
                     throw error(message);
                 }
