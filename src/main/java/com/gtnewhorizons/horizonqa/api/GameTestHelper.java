@@ -149,6 +149,16 @@ public class GameTestHelper {
     }
 
     /**
+     * Register an initially enabled callback without a diagnostic name.
+     *
+     * @deprecated Use {@link #onEachTick(String, Runnable)} so failures identify the callback.
+     */
+    @Deprecated
+    public TickCallbackHandle onEachTick(Runnable callback) {
+        return onEachTick("Using deprecated method, fix ASAP", callback);
+    }
+
+    /**
      * Register a named, initially disabled per-tick callback. Enable the returned handle from a
      * sequence action when its observation window begins.
      *
