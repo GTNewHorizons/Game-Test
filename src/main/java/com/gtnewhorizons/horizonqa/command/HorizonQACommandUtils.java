@@ -28,7 +28,8 @@ public final class HorizonQACommandUtils {
 
     public static TestCell findTestById(String testId, Collection<TestCell> cells) {
         for (TestCell cell : cells) {
-            if (cell.testId().equals(testId)) {
+            if (cell.testId()
+                .equals(testId)) {
                 return cell;
             }
         }

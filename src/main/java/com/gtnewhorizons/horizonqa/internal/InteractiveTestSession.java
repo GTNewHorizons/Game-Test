@@ -175,9 +175,12 @@ public class InteractiveTestSession {
     void recordPreparationFailure(FixturePreparation.Result result) {
         GameTestInstance marker = new GameTestInstance(
             result.definition(),
-            result.cell().originX(),
-            result.cell().originY(),
-            result.cell().originZ());
+            result.cell()
+                .originX(),
+            result.cell()
+                .originY(),
+            result.cell()
+                .originZ());
         marker.failSetup(result.failure());
         knownCells.put(
             result.definition()

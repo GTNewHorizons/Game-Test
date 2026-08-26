@@ -255,7 +255,8 @@ final class FixturePreparation {
     }
 
     private static void clear(WorldServer world, TestCell cell) {
-        TestCellScanner.preClearWithMargin(world, cell.minX(), cell.minY(), cell.minZ(), cell.maxX(), cell.maxY(), cell.maxZ());
+        TestCellScanner
+            .preClearWithMargin(world, cell.minX(), cell.minY(), cell.minZ(), cell.maxX(), cell.maxY(), cell.maxZ());
     }
 
     private static void clearAfterUnexpectedFailure(WorldServer world, TestCell cell, Throwable failure) {
