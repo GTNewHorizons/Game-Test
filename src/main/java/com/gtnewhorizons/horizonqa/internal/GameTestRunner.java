@@ -165,10 +165,8 @@ public final class GameTestRunner {
     }
 
     private void abortAndRelease(String message, Throwable cause) {
-        synchronized (GameTestRunner.class) {
-            if (activeRunner != this || aborting) return;
-            aborting = true;
-        }
+        if (activeRunner != this || aborting) return;
+        aborting = true;
         List<GameTestInstance> aborted = new ArrayList<>(instances);
         instances.clear();
         onAllDone = null;
