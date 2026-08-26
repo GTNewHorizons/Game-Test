@@ -16,8 +16,8 @@ import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
-import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
+import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 
 public class InteractiveTestSessionTest {
 
@@ -27,35 +27,26 @@ public class InteractiveTestSessionTest {
     }
 
     @Test
-    public void explicitlyEmptyTemplateRemainsAnEmptyFixture() throws Exception {
-        assertNull(InteractiveTestSession.loadTemplate(definition("")));
-    }
-
-    @Test
-    public void templateLoadFailureIsNotCollapsedIntoAnEmptyFixture() {
-        assertThrows(
-            IOException.class,
-            () -> InteractiveTestSession.loadTemplate(definition("horizonqatest:missing_interactive_template")));
-    }
-
-    @Test
-    public void legacyTemplateFailureCreatesVisibleTemplateErrorMarker() {
+    public void preparationFailureCreatesVisibleTemplateErrorMarker() {
         GameTestDefinition definition = definition("horizonqatest:legacy_numeric_stack");
-        IOException error = assertThrows(IOException.class, () -> InteractiveTestSession.loadTemplate(definition));
+        IOException error = assertThrows(
+            IOException.class,
+            () -> HybridStructureLoader.load(definition.getTemplateName()));
         InteractiveTestSession session = InteractiveTestSession.get();
+        GameTestInfrastructureException failure = new GameTestInfrastructureException(
+            CaseResult.TEMPLATE_ERROR,
+            error.getMessage());
+        failure.initCause(error);
+        TestCell cell = new TestCell(definition.getTestId(), 0, 64, 0, 0, 64, 0, 4, 68, 4);
 
-        session.recordTemplateLoadFailure(definition, new IOException("previous marker"));
-        CellRecord existingCell = session.getKnownCells()
-            .iterator()
-            .next();
-        session.recordTemplateLoadFailure(definition, error);
+        session.recordPreparationFailure(FixturePreparation.Result.failed(definition, cell, failure));
 
         assertEquals(
             1,
             session.getKnownCells()
                 .size());
         assertSame(
-            existingCell,
+            cell,
             session.getKnownCells()
                 .iterator()
                 .next());
@@ -64,17 +55,14 @@ public class InteractiveTestSessionTest {
         assertEquals(GameTestStatus.ERROR, instance.getStatus());
         assertNull(instance.getCleanupFailureCause());
         assertTrue(instance.getFailureCause() instanceof GameTestInfrastructureException);
-        GameTestInfrastructureException failure = (GameTestInfrastructureException) instance.getFailureCause();
-        assertEquals(CaseResult.TEMPLATE_ERROR, failure.kind());
+        GameTestInfrastructureException recordedFailure = (GameTestInfrastructureException) instance.getFailureCause();
+        assertEquals(CaseResult.TEMPLATE_ERROR, recordedFailure.kind());
         assertTrue(
-            failure.getMessage()
+            recordedFailure.getMessage()
                 .contains("unsafe numeric ItemStack ID"));
         assertTrue(
-            failure.getMessage()
+            recordedFailure.getMessage()
                 .contains("$.entities[0].Item"));
-        assertFalse(
-            failure.getMessage()
-                .contains("previous marker"));
         assertEquals(
             CaseResult.TEMPLATE_ERROR,
             CaseResult.from(instance)

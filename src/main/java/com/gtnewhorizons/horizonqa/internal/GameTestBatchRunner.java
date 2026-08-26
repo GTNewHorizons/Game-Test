@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.internal;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
@@ -23,18 +22,12 @@ import org.apache.logging.log4j.Logger;
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
-import com.gtnewhorizons.horizonqa.api.TestPos;
-import com.gtnewhorizons.horizonqa.api.event.StructurePlaced;
-import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
+import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
-import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
-import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
-import com.gtnewhorizons.horizonqa.structure.StructurePlacer;
-import com.gtnewhorizons.horizonqa.structure.TemplateException;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 
@@ -49,7 +42,7 @@ public class GameTestBatchRunner {
 
     private final List<Batch> batches;
     private final GameTestRunner runner;
-    private final GameTestGridLayout grid;
+    private final FixturePreparation fixturePreparation;
     private final List<ResultEntry> resultEntries = new ArrayList<>();
     private final List<IssueResult> issues = new ArrayList<>();
     private final Consumer<RunResult> onComplete;
@@ -67,7 +60,7 @@ public class GameTestBatchRunner {
     public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues, Consumer<RunResult> onComplete) {
         runner = new GameTestRunner();
-        grid = new GameTestGridLayout();
+        fixturePreparation = new FixturePreparation();
         List<GameTestDefinition> runnableTests = new ArrayList<>();
         for (GameTestDefinition test : tests) {
             if (test.isSkippedAtDiscovery()) {
@@ -173,84 +166,35 @@ public class GameTestBatchRunner {
             return;
         }
 
-        List<PlannedTest> planned = new ArrayList<>(batch.tests.size());
-        for (GameTestDefinition def : batch.tests) {
-            planned.add(plan(def, world));
+        List<FixturePreparation.Result> prepared;
+        try {
+            prepared = fixturePreparation.prepare(world, batch.tests);
+        } catch (GameTestInfrastructureException e) {
+            IssueResult rootIssue = fixturePreparationIssue(batch.name, batch.tests.size(), e);
+            issues.add(rootIssue);
+            for (CaseResult skippedCase : skippedCasesForIssue(batch.tests, rootIssue, CaseResult.TEMPLATE_ERROR)) {
+                resultEntries.add(ResultEntry.result(skippedCase));
+            }
+            issues.addAll(invokeHooks(batch.afterMethods, HookPhase.AFTER, batch.name, false, 0));
+            runNextBatchOrFinish(idx);
+            return;
         }
 
-        for (PlannedTest p : planned) {
-            if (p.hasTemplateError()) {
+        List<GameTestInstance> batchInstances = new ArrayList<>(prepared.size());
+        for (FixturePreparation.Result result : prepared) {
+            if (!result.isReady()) {
+                Throwable cause = result.failure()
+                    .getCause();
+                resultEntries.add(
+                    ResultEntry.result(
+                        CaseResult.templateError(
+                            result.definition(),
+                            result.failure()
+                                .getMessage(),
+                            cause != null ? cause : result.failure())));
                 continue;
             }
-            TestCellScanner
-                .preClearWithMargin(world, p.cellMinX, p.cellMinY, p.cellMinZ, p.cellMaxX, p.cellMaxY, p.cellMaxZ);
-        }
-
-        for (int i = 0; i < planned.size(); i++) {
-            PlannedTest p = planned.get(i);
-            if (p.hasTemplateError()) {
-                continue;
-            }
-            if (p.template != null) {
-                try {
-                    StructurePlacer.placeStrict(
-                        p.def.getTemplateName(),
-                        p.template,
-                        world,
-                        p.originX,
-                        p.originY,
-                        p.originZ,
-                        p.def.getRotation(),
-                        GTNHGameTestHelper::rotateStructureTileNbt);
-                } catch (TemplateException e) {
-                    planned.set(i, p.withTemplateError(templateErrorCase(p.def, e)));
-                }
-            }
-        }
-
-        List<GameTestInstance> batchInstances = new ArrayList<>(planned.size());
-        for (PlannedTest p : planned) {
-            if (p.hasTemplateError()) {
-                resultEntries.add(ResultEntry.result(p.templateError));
-                continue;
-            }
-            GameTestInstance inst = new GameTestInstance(p.def, p.originX, p.originY, p.originZ, p.template);
-            if (p.template != null) {
-                final String templateName = p.def.getTemplateName();
-                final int sx = p.tmplSizeX, sy = p.tmplSizeY, sz = p.tmplSizeZ;
-                final TestPos origin = new TestPos(p.originX, p.originY, p.originZ);
-                TestEventRecorder rec = inst.getRecorder();
-                rec.record(
-                    () -> new StructurePlaced(
-                        rec.clock()
-                            .tick(),
-                        templateName,
-                        origin,
-                        sx,
-                        sy,
-                        sz));
-            }
-
-            int tmplMaxX = p.tmplSizeX > 0 ? p.originX + p.tmplSizeX - 1 : -1;
-            int tmplMaxY = p.tmplSizeY > 0 ? p.originY + p.tmplSizeY - 1 : -1;
-            int tmplMaxZ = p.tmplSizeZ > 0 ? p.originZ + p.tmplSizeZ - 1 : -1;
-            TestCellScanner.registerIsolationCheck(
-                inst,
-                world,
-                p.cellMinX,
-                p.cellMinY,
-                p.cellMinZ,
-                p.cellMaxX,
-                p.cellMaxY,
-                p.cellMaxZ,
-                p.originX,
-                p.originY,
-                p.originZ,
-                tmplMaxX,
-                tmplMaxY,
-                tmplMaxZ,
-                p.template != null);
-
+            GameTestInstance inst = result.instance();
             inst.start(world);
             batchInstances.add(inst);
             resultEntries.add(ResultEntry.instance(inst));
@@ -376,70 +320,6 @@ public class GameTestBatchRunner {
         return tests;
     }
 
-    private PlannedTest plan(GameTestDefinition def, WorldServer world) {
-        HybridStructureTemplate template;
-        try {
-            template = loadTemplate(def);
-        } catch (IOException e) {
-            return PlannedTest.templateError(def, templateErrorCase(def, e));
-        }
-
-        int sizeX = template != null ? StructurePlacer.placedSizeX(template, def.getRotation()) : 0;
-        int sizeY = template != null ? template.getSizeY() : 0;
-        int sizeZ = template != null ? StructurePlacer.placedSizeZ(template, def.getRotation()) : 0;
-        int[] origin = grid.allocateOrigin(sizeX, sizeZ);
-
-        int cellSizeX = Math.max(sizeX, GameTestGridLayout.DEFAULT_CELL_SIZE);
-        int cellSizeY = Math.max(sizeY, 1);
-        int cellSizeZ = Math.max(sizeZ, GameTestGridLayout.DEFAULT_CELL_SIZE);
-
-        int cellMinX = origin[0];
-        int cellMinY = origin[1];
-        int cellMinZ = origin[2];
-        int cellMaxX = origin[0] + cellSizeX - 1;
-        int cellMaxY = origin[1] + cellSizeY - 1;
-        int cellMaxZ = origin[2] + cellSizeZ - 1;
-
-        try {
-            if (template != null) {
-                StructurePlacer.validateVerticalBounds(def.getTemplateName(), origin[1], sizeY);
-            }
-            HorizonQAMod.CHUNK_LOADER
-                .forceChunksStrict(world, cellMinX, cellMinY, cellMinZ, cellMaxX, cellMaxY, cellMaxZ);
-        } catch (TemplateException e) {
-            return PlannedTest.templateError(def, templateErrorCase(def, e));
-        }
-
-        return new PlannedTest(
-            def,
-            template,
-            origin[0],
-            origin[1],
-            origin[2],
-            sizeX,
-            sizeY,
-            sizeZ,
-            cellMinX,
-            cellMinY,
-            cellMinZ,
-            cellMaxX,
-            cellMaxY,
-            cellMaxZ,
-            null);
-    }
-
-    private static HybridStructureTemplate loadTemplate(GameTestDefinition def) throws IOException {
-        if (def.getTemplateName()
-            .isEmpty()) return null;
-        return HybridStructureLoader.load(def.getTemplateName());
-    }
-
-    private static CaseResult templateErrorCase(GameTestDefinition def, Throwable error) {
-        String message = errorMessage(error);
-        LOG.error("Template setup failed for test '{}': {}", def.getTestId(), message, error);
-        return CaseResult.templateError(def, message, error);
-    }
-
     private static List<Batch> buildBatches(List<GameTestDefinition> tests, Map<String, List<Method>> beforeMethods,
         Map<String, List<Method>> afterMethods) {
 
@@ -524,6 +404,29 @@ public class GameTestBatchRunner {
             true);
     }
 
+    private static IssueResult fixturePreparationIssue(String batch, int affectedTests,
+        GameTestInfrastructureException error) {
+        String id = "runner:fixturePreparation:" + batchId(batch);
+        String message = "Fixture preparation failed for batch '" + batchName(batch) + "': " + errorMessage(error);
+        String details = "issue.id=" + id
+            + "\nkind="
+            + CaseResult.TEMPLATE_ERROR
+            + "\nbatch="
+            + batchName(batch)
+            + "\naffectedTests="
+            + affectedTests
+            + "\n";
+        return new IssueResult(
+            id,
+            CaseResult.TEMPLATE_ERROR,
+            "horizonqa.infrastructure",
+            "fixture-preparation:" + batchName(batch),
+            message,
+            details,
+            true,
+            stackTrace(error));
+    }
+
     private static void logHookIssue(HookPhase phase, String batch, Method method, Throwable error) {
         LOG.error(
             "Exception in @{} method '{}' for batch '{}': {}",
@@ -604,37 +507,4 @@ public class GameTestBatchRunner {
         }
     }
 
-    @Desugar
-    private record PlannedTest(GameTestDefinition def, HybridStructureTemplate template, int originX, int originY,
-        int originZ, int tmplSizeX, int tmplSizeY, int tmplSizeZ, int cellMinX, int cellMinY, int cellMinZ,
-        int cellMaxX, int cellMaxY, int cellMaxZ, CaseResult templateError) {
-
-        static PlannedTest templateError(GameTestDefinition def, CaseResult result) {
-            return new PlannedTest(def, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, result);
-        }
-
-        boolean hasTemplateError() {
-            return templateError != null;
-        }
-
-        PlannedTest withTemplateError(CaseResult result) {
-            return new PlannedTest(
-                def,
-                template,
-                originX,
-                originY,
-                originZ,
-                tmplSizeX,
-                tmplSizeY,
-                tmplSizeZ,
-                cellMinX,
-                cellMinY,
-                cellMinZ,
-                cellMaxX,
-                cellMaxY,
-                cellMaxZ,
-                result);
-        }
-
-    }
 }
