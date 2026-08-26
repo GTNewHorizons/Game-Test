@@ -423,9 +423,9 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
 
-        double targetX = (cell.minX + cell.maxX + 1.0) * 0.5;
-        double targetY = cell.maxY + 2.0;
-        double targetZ = (cell.minZ + cell.maxZ + 1.0) * 0.5;
+        double targetX = (cell.minX() + cell.maxX() + 1.0) * 0.5;
+        double targetY = cell.maxY() + 2.0;
+        double targetZ = (cell.minZ() + cell.maxZ() + 1.0) * 0.5;
 
         if (serverPlayer.ridingEntity != null) {
             serverPlayer.mountEntity(null);
@@ -435,7 +435,7 @@ public class HorizonQACommand extends CommandBase {
 
         sender.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.GREEN + "Teleported to: " + EnumChatFormatting.YELLOW + cell.testId));
+                EnumChatFormatting.GREEN + "Teleported to: " + EnumChatFormatting.YELLOW + cell.testId()));
         sender.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.GRAY + String.format("Cell target: (%.1f, %.1f, %.1f)", targetX, targetY, targetZ)));
@@ -630,10 +630,10 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private static void relaunchCell(ICommandSender sender, TestCell cell) {
-        GameTestDefinition def = findDefinition(cell.testId);
+        GameTestDefinition def = findDefinition(cell.testId());
         if (def == null) {
             sender.addChatMessage(
-                new ChatComponentText(EnumChatFormatting.RED + "Definition not found for '" + cell.testId + "'."));
+                new ChatComponentText(EnumChatFormatting.RED + "Definition not found for '" + cell.testId() + "'."));
             return;
         }
         boolean launched = InteractiveTestSession.get()
@@ -682,13 +682,13 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
 
-        int relX = px - cell.originX;
-        int relY = py - cell.originY;
-        int relZ = pz - cell.originZ;
+        int relX = px - cell.originX();
+        int relY = py - cell.originY();
+        int relZ = pz - cell.originZ();
         String call = String.format("helper.absolute(%d, %d, %d)", relX, relY, relZ);
 
         sender.addChatMessage(
-            new ChatComponentText(EnumChatFormatting.AQUA + "Test: " + EnumChatFormatting.YELLOW + cell.testId));
+            new ChatComponentText(EnumChatFormatting.AQUA + "Test: " + EnumChatFormatting.YELLOW + cell.testId()));
         sender.addChatMessage(
             new ChatComponentText(
                 EnumChatFormatting.AQUA + "World:    "
@@ -1255,7 +1255,7 @@ public class HorizonQACommand extends CommandBase {
         List<String> ids = new ArrayList<>();
         for (TestCell cell : InteractiveTestSession.get()
             .getKnownCells()) {
-            ids.add(cell.testId);
+            ids.add(cell.testId());
         }
         ids.sort(String::compareTo);
         return ids.toArray(new String[0]);

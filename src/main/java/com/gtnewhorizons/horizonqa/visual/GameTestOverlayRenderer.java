@@ -70,27 +70,27 @@ public final class GameTestOverlayRenderer {
         GL11.glTranslated(-camX, -camY, -camZ);
 
         for (TestCell cell : cells) {
-            GameTestInstance inst = session.getLastInstance(cell.testId);
+            GameTestInstance inst = session.getLastInstance(cell.testId());
             GameTestStatus status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;
 
             float[] col = statusColor(status);
 
             HighlightBox.render(
-                cell.minX,
-                cell.minY,
-                cell.minZ,
-                cell.maxX + 1.0,
-                cell.maxY + 1.0,
-                cell.maxZ + 1.0,
+                cell.minX(),
+                cell.minY(),
+                cell.minZ(),
+                cell.maxX() + 1.0,
+                cell.maxY() + 1.0,
+                cell.maxZ() + 1.0,
                 1.0f,
                 1.0f,
                 1.0f,
                 0.5f);
 
-            double bcx = cell.minX - 0.5;
-            double bcy = cell.minY;
-            double bcz = cell.minZ - 0.5;
+            double bcx = cell.minX() - 0.5;
+            double bcy = cell.minY();
+            double bcz = cell.minZ() - 0.5;
             DebugBeacon.render(bcx, bcy, bcz, col[0], col[1], col[2], pt, wt);
         }
 
@@ -99,14 +99,14 @@ public final class GameTestOverlayRenderer {
         }
 
         for (TestCell cell : cells) {
-            GameTestInstance inst = session.getLastInstance(cell.testId);
+            GameTestInstance inst = session.getLastInstance(cell.testId());
             GameTestStatus status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;
 
-            double bcx = cell.minX - 0.5;
-            double bcz = cell.minZ - 0.5;
+            double bcx = cell.minX() - 0.5;
+            double bcz = cell.minZ() - 0.5;
 
-            FloatingText.render(bcx, cell.minY + TEXT_Y_LIFT, bcz, buildLines(cell.testId, status, inst), pt);
+            FloatingText.render(bcx, cell.minY() + TEXT_Y_LIFT, bcz, buildLines(cell.testId(), status, inst), pt);
 
             if (inst.hasFailPosition()) {
                 String failLabel = null;

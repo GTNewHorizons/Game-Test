@@ -166,9 +166,9 @@ final class FixturePreparation {
                     plan.definition.getTemplateName(),
                     plan.template,
                     world,
-                    plan.cell.originX,
-                    plan.cell.originY,
-                    plan.cell.originZ,
+                    plan.cell.originX(),
+                    plan.cell.originY(),
+                    plan.cell.originZ(),
                     plan.definition.getRotation(),
                     GTNHGameTestHelper::rotateStructureTileNbt);
             } catch (TemplateException e) {
@@ -179,9 +179,9 @@ final class FixturePreparation {
 
         GameTestInstance instance = new GameTestInstance(
             plan.definition,
-            plan.cell.originX,
-            plan.cell.originY,
-            plan.cell.originZ,
+            plan.cell.originX(),
+            plan.cell.originY(),
+            plan.cell.originZ(),
             plan.template);
         if (plan.template != null) {
             TestEventRecorder recorder = instance.getRecorder();
@@ -190,27 +190,27 @@ final class FixturePreparation {
                     recorder.clock()
                         .tick(),
                     plan.definition.getTemplateName(),
-                    TestPos.at(plan.cell.originX, plan.cell.originY, plan.cell.originZ),
+                    TestPos.at(plan.cell.originX(), plan.cell.originY(), plan.cell.originZ()),
                     plan.sizeX,
                     plan.sizeY,
                     plan.sizeZ));
         }
 
-        int templateMaxX = plan.sizeX > 0 ? plan.cell.originX + plan.sizeX - 1 : -1;
-        int templateMaxY = plan.sizeY > 0 ? plan.cell.originY + plan.sizeY - 1 : -1;
-        int templateMaxZ = plan.sizeZ > 0 ? plan.cell.originZ + plan.sizeZ - 1 : -1;
+        int templateMaxX = plan.sizeX > 0 ? plan.cell.originX() + plan.sizeX - 1 : -1;
+        int templateMaxY = plan.sizeY > 0 ? plan.cell.originY() + plan.sizeY - 1 : -1;
+        int templateMaxZ = plan.sizeZ > 0 ? plan.cell.originZ() + plan.sizeZ - 1 : -1;
         TestCellScanner.registerIsolationCheck(
             instance,
             world,
-            plan.cell.minX,
-            plan.cell.minY,
-            plan.cell.minZ,
-            plan.cell.maxX,
-            plan.cell.maxY,
-            plan.cell.maxZ,
-            plan.cell.originX,
-            plan.cell.originY,
-            plan.cell.originZ,
+            plan.cell.minX(),
+            plan.cell.minY(),
+            plan.cell.minZ(),
+            plan.cell.maxX(),
+            plan.cell.maxY(),
+            plan.cell.maxZ(),
+            plan.cell.originX(),
+            plan.cell.originY(),
+            plan.cell.originZ(),
             templateMaxX,
             templateMaxY,
             templateMaxZ,
@@ -229,12 +229,12 @@ final class FixturePreparation {
         for (Plan plan : plans) {
             if (plan.failure != null) continue;
             ready++;
-            minX = Math.min(minX, plan.cell.minX - GameTestGridLayout.INTER_CELL_GAP);
-            minY = Math.min(minY, Math.max(0, plan.cell.minY - GameTestGridLayout.INTER_CELL_GAP));
-            minZ = Math.min(minZ, plan.cell.minZ - GameTestGridLayout.INTER_CELL_GAP);
-            maxX = Math.max(maxX, plan.cell.maxX + GameTestGridLayout.INTER_CELL_GAP);
-            maxY = Math.max(maxY, plan.cell.maxY + GameTestGridLayout.INTER_CELL_GAP);
-            maxZ = Math.max(maxZ, plan.cell.maxZ + GameTestGridLayout.INTER_CELL_GAP);
+            minX = Math.min(minX, plan.cell.minX() - GameTestGridLayout.INTER_CELL_GAP);
+            minY = Math.min(minY, Math.max(0, plan.cell.minY() - GameTestGridLayout.INTER_CELL_GAP));
+            minZ = Math.min(minZ, plan.cell.minZ() - GameTestGridLayout.INTER_CELL_GAP);
+            maxX = Math.max(maxX, plan.cell.maxX() + GameTestGridLayout.INTER_CELL_GAP);
+            maxY = Math.max(maxY, plan.cell.maxY() + GameTestGridLayout.INTER_CELL_GAP);
+            maxZ = Math.max(maxZ, plan.cell.maxZ() + GameTestGridLayout.INTER_CELL_GAP);
         }
         if (ready == 0) return;
 
@@ -255,7 +255,7 @@ final class FixturePreparation {
     }
 
     private static void clear(WorldServer world, TestCell cell) {
-        TestCellScanner.preClearWithMargin(world, cell.minX, cell.minY, cell.minZ, cell.maxX, cell.maxY, cell.maxZ);
+        TestCellScanner.preClearWithMargin(world, cell.minX(), cell.minY(), cell.minZ(), cell.maxX(), cell.maxY(), cell.maxZ());
     }
 
     private static void clearAfterUnexpectedFailure(WorldServer world, TestCell cell, Throwable failure) {

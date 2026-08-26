@@ -96,7 +96,7 @@ public class InteractiveTestSession {
             return launchTest(definition) > 0;
         }
 
-        TestPos origin = TestPos.at(existing.originX, existing.originY, existing.originZ);
+        TestPos origin = TestPos.at(existing.originX(), existing.originY(), existing.originZ());
         clearRetainedFixture(world, definition.getTestId());
 
         FixturePreparation.Result result;
@@ -119,9 +119,9 @@ public class InteractiveTestSession {
         LOG.info(
             "[GameTest] Re-launched '{}' in-place at ({}, {}, {}).",
             definition.getTestId(),
-            existing.originX,
-            existing.originY,
-            existing.originZ);
+            existing.originX(),
+            existing.originY(),
+            existing.originZ());
         return true;
     }
 
@@ -131,7 +131,7 @@ public class InteractiveTestSession {
         int cleared = 0;
         if (world != null) {
             for (TestCell cell : knownCells.values()) {
-                if (worldOwnedCellIds.contains(cell.testId)) {
+                if (worldOwnedCellIds.contains(cell.testId())) {
                     clearCell(world, cell);
                     cleared++;
                 }
@@ -175,9 +175,9 @@ public class InteractiveTestSession {
     void recordPreparationFailure(FixturePreparation.Result result) {
         GameTestInstance marker = new GameTestInstance(
             result.definition(),
-            result.cell().originX,
-            result.cell().originY,
-            result.cell().originZ);
+            result.cell().originX(),
+            result.cell().originY(),
+            result.cell().originZ());
         marker.failSetup(result.failure());
         knownCells.put(
             result.definition()
@@ -227,9 +227,9 @@ public class InteractiveTestSession {
                 "[GameTest] Launched '{}' at ({}, {}, {}).",
                 result.definition()
                     .getTestId(),
-                cell.originX,
-                cell.originY,
-                cell.originZ);
+                cell.originX(),
+                cell.originY(),
+                cell.originZ());
         }
         return launched;
     }
@@ -259,12 +259,12 @@ public class InteractiveTestSession {
         int margin = GameTestGridLayout.INTER_CELL_GAP;
         GridSweeper.clearAndNotify(
             world,
-            cell.minX - margin,
-            cell.minY - margin,
-            cell.minZ - margin,
-            cell.maxX + margin,
-            cell.maxY + margin,
-            cell.maxZ + margin);
+            cell.minX() - margin,
+            cell.minY() - margin,
+            cell.minZ() - margin,
+            cell.maxX() + margin,
+            cell.maxY() + margin,
+            cell.maxZ() + margin);
     }
 
     private void ensureRunnerRegistered() {
