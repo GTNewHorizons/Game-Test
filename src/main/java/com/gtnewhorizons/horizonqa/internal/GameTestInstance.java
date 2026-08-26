@@ -105,6 +105,13 @@ public class GameTestInstance {
         fail(cause);
     }
 
+    void abortExecution(String message, Throwable cause) {
+        if (status != GameTestStatus.RUNNING) return;
+        GameTestInfrastructureException failure = new GameTestInfrastructureException("EXECUTION_ABORTED", message);
+        if (cause != null) failure.initCause(cause);
+        fail(failure);
+    }
+
     public void tickStart() {
         if (status != GameTestStatus.RUNNING) return;
         tickCount++;

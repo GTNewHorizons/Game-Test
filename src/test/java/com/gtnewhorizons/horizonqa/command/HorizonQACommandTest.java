@@ -29,6 +29,7 @@ import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
 import com.gtnewhorizons.horizonqa.internal.DuplicateTestId;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
@@ -41,8 +42,9 @@ public class HorizonQACommandTest {
     @After
     public void clearRegistry() throws Exception {
         seedRegistry(Collections.emptyList(), Collections.emptyList());
+        GameTestRunner.shutdown();
         InteractiveTestSession.reset();
-        HorizonQACommand.resetReportBatchState();
+        HorizonQACommand.resetReportedResults();
     }
 
     @Test

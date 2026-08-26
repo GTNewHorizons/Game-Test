@@ -33,6 +33,7 @@ import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
@@ -56,7 +57,6 @@ public class HorizonQACommand extends CommandBase {
         "clearall", "load", "export", "clear", "label", "labels" };
     private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
     private static final Set<String> LAST_REPORTED_FAILED_IDS = new LinkedHashSet<>();
-    private static volatile boolean reportBatchRunning;
 
     @Override
     public String getCommandName() {
@@ -321,7 +321,7 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleRunFailed(ICommandSender sender, String[] args) {
-        if (HorizonQAProperties.usesReportedCommandBatches() && reportBatchRunning) {
+        if (HorizonQAProperties.usesReportedCommandBatches() && GameTestRunner.isBatchActive()) {
             reportBatchAlreadyRunning(sender);
             return;
         }
@@ -452,7 +452,7 @@ public class HorizonQACommand extends CommandBase {
 
     private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests,
         String launchedMessage) {
-        if (reportBatchRunning || GameTestBatchRunner.isBatchRunning()) {
+        if (GameTestRunner.isBatchActive()) {
             reportBatchAlreadyRunning(sender);
             return;
         }
@@ -465,22 +465,11 @@ public class HorizonQACommand extends CommandBase {
                 GameTestRegistry.getBeforeBatchMethods(),
                 GameTestRegistry.getAfterBatchMethods(),
                 Collections.emptyList(),
-                result -> {
-                    try {
-                        rememberReportedBatchResult(result);
-                    } finally {
-                        reportBatchRunning = false;
-                    }
-                });
-            reportBatchRunning = true;
+                HorizonQACommand::rememberReportedBatchResult);
             batchRunner.start();
         } catch (IllegalStateException e) {
-            reportBatchRunning = false;
             reportBatchAlreadyRunning(sender);
             return;
-        } catch (RuntimeException | Error e) {
-            reportBatchRunning = false;
-            throw e;
         }
         sender.addChatMessage(new ChatComponentText(launchedMessage));
     }
@@ -532,8 +521,7 @@ public class HorizonQACommand extends CommandBase {
         }
     }
 
-    public static void resetReportBatchState() {
-        reportBatchRunning = false;
+    public static void resetReportedResults() {
         LAST_REPORTED_FAILED_IDS.clear();
     }
 
@@ -544,7 +532,7 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private static boolean rejectBatchRunning(ICommandSender sender) {
-        if (!GameTestBatchRunner.isBatchRunning()) {
+        if (!GameTestRunner.isBatchActive()) {
             return false;
         }
         reportBatchAlreadyRunning(sender);

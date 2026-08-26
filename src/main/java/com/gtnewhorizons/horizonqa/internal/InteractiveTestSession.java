@@ -28,7 +28,6 @@ public class InteractiveTestSession {
 
     private final GameTestRunner runner;
     private FixturePreparation fixturePreparation;
-    private boolean runnerRegistered;
 
     private final Map<String, TestCell> knownCells = new ConcurrentHashMap<>();
     private final Map<String, GameTestInstance> lastInstances = new ConcurrentHashMap<>();
@@ -49,13 +48,9 @@ public class InteractiveTestSession {
 
     public static void reset() {
         if (CURRENT != null) {
-            if (CURRENT.runnerRegistered) {
-                try {
-                    CURRENT.runner.unregister();
-                } catch (Exception ignored) {}
-            }
-            CURRENT = null;
+            CURRENT.runner.abortIfActive("Interactive test session was reset before test completion");
         }
+        CURRENT = null;
     }
 
     public int launchTest(GameTestDefinition definition) {
@@ -115,7 +110,7 @@ public class InteractiveTestSession {
             return false;
         }
 
-        launchPrepared(world, Collections.singletonList(result));
+        if (launchPrepared(world, Collections.singletonList(result)) == 0) return false;
         LOG.info(
             "[GameTest] Re-launched '{}' in-place at ({}, {}, {}).",
             definition.getTestId(),
@@ -199,14 +194,24 @@ public class InteractiveTestSession {
     }
 
     private int launchPrepared(WorldServer world, List<FixturePreparation.Result> results) {
-        int launched = 0;
+        List<FixturePreparation.Result> ready = new ArrayList<>(results.size());
         for (FixturePreparation.Result result : results) {
             if (!result.isReady()) {
                 recordPreparationFailure(result);
                 continue;
             }
+            ready.add(result);
+        }
+        if (ready.isEmpty()) return 0;
+        if (!runner.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> startPrepared(world, ready))) {
+            LOG.warn("[GameTest] Interactive test session is unavailable while another execution is active.");
+            return 0;
+        }
+        return ready.size();
+    }
 
-            ensureRunnerRegistered();
+    private void startPrepared(WorldServer world, List<FixturePreparation.Result> ready) {
+        for (FixturePreparation.Result result : ready) {
             GameTestInstance instance = result.instance();
             TestCell cell = result.cell();
             knownCells.put(
@@ -225,7 +230,6 @@ public class InteractiveTestSession {
                     .getTestId(),
                 instance);
             runner.addInstance(instance);
-            launched++;
             LOG.info(
                 "[GameTest] Launched '{}' at ({}, {}, {}).",
                 result.definition()
@@ -234,7 +238,6 @@ public class InteractiveTestSession {
                 cell.originY(),
                 cell.originZ());
         }
-        return launched;
     }
 
     private void clearRetainedFixture(WorldServer world, String testId) {
@@ -270,15 +273,8 @@ public class InteractiveTestSession {
             cell.maxZ() + margin);
     }
 
-    private void ensureRunnerRegistered() {
-        if (!runnerRegistered) {
-            runner.register();
-            runnerRegistered = true;
-        }
-    }
-
     private static boolean isBatchRunnerActive() {
-        if (!GameTestBatchRunner.isBatchRunning()) {
+        if (!GameTestRunner.isBatchActive()) {
             return false;
         }
         LOG.warn("[GameTest] Interactive test session is unavailable while a GameTest batch is running.");
