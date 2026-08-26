@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
-import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
 @Mixin(MinecraftServer.class)
@@ -97,7 +97,6 @@ public abstract class MixinMinecraftServer {
     }
 
     private static boolean gametest$isTurboTicking() {
-        return HorizonQAProperties.usesHeadlessServerBehavior() && HorizonQAProperties.turboMultiplier() > 1
-            && GameTestBatchRunner.isBatchRunning();
+        return GameTestRunner.isTurboActive();
     }
 }

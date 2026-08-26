@@ -2,6 +2,7 @@ package com.gtnewhorizons.horizonqa.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
@@ -18,6 +20,31 @@ import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
 
 public class GameTestBatchRunnerTest {
+
+    @After
+    public void resetExecution() {
+        GameTestRunner.shutdown();
+    }
+
+    @Test
+    public void batchLaunchCannotReplaceInteractiveOwner() {
+        int[] interactiveStarts = new int[1];
+        GameTestRunner interactive = new GameTestRunner();
+        assertTrue(
+            interactive.tryStart(
+                GameTestRunner.Kind.INTERACTIVE,
+                () -> interactive.scheduleOnFirstTick(() -> interactiveStarts[0]++)));
+        GameTestBatchRunner batch = new GameTestBatchRunner(
+            Collections.emptyList(),
+            Collections.emptyMap(),
+            Collections.emptyMap());
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class, batch::start);
+        GameTestRunner.handleTickStart();
+
+        assertEquals("A GameTest batch is already running.", failure.getMessage());
+        assertEquals(1, interactiveStarts[0]);
+    }
 
     @Test
     public void sortsHookMethodsByDeclaringClassThenMethodName() throws Exception {

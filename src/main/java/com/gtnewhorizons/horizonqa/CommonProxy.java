@@ -12,6 +12,7 @@ import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
+import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
@@ -172,8 +173,10 @@ public class CommonProxy {
     }
 
     public void serverStopping(FMLServerStoppingEvent event) {
-        HorizonQACommand.resetReportBatchState();
-        GameTestBatchRunner.resetBatchRunningState();
+        GameTestRunner.shutdown();
+        HorizonQAMod.CHUNK_LOADER.releaseAll();
+        InteractiveTestSession.reset();
+        HorizonQACommand.resetReportedResults();
     }
 
     private static boolean shouldStopAfterStartupFailure() {

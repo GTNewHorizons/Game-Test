@@ -23,6 +23,7 @@ public class InteractiveTestSessionTest {
 
     @After
     public void tearDown() {
+        GameTestRunner.shutdown();
         InteractiveTestSession.reset();
     }
 
