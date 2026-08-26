@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * A sequence step completed or failed. The human-readable summary omits timing for an immediate step,
@@ -15,7 +14,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * @param attempts     number of action or condition attempts
  * @param elapsedTicks inclusive outer-test tick count from first attempt to completion
  */
-@Experimental
 @Desugar
 public record SequenceStepFinished(int tick, int index, int totalSteps, String label, String outcome, int attempts,
     long elapsedTicks) implements TestEvent {

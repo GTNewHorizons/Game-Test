@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
 import com.github.bsideup.jabel.Desugar;
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 
 /**
  * A sequence step reached its first execution attempt.
@@ -15,7 +14,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * @param scheduledTick effective outer test tick scheduled by the sequence
  * @param source        declaration source location
  */
-@Experimental
 @Desugar
 public record SequenceStepStarted(int tick, int index, int totalSteps, String label, String kind, String phase,
     long scheduledTick, String source) implements TestEvent {

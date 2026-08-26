@@ -1,7 +1,5 @@
 package com.gtnewhorizons.horizonqa.api.event;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
-
 /**
  * Ordered, typed entry in an {@link EventLog}.
  * Records exposing {@code TestEvent} carry the structured payload as their own record components; this
@@ -9,7 +7,6 @@ import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
  * coarse {@code category} for filtering, and a one-line {@code summary} suitable for direct inclusion in
  * a JUnit {@code <system-out>} block, status JSON output array, or console tail.
  */
-@Experimental
 public interface TestEvent {
 
     /** Logical tick when this event was recorded — ticks of simulated machine time since test start. */

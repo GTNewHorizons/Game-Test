@@ -26,7 +26,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidHandler;
 
-import com.gtnewhorizons.horizonqa.api.annotation.Experimental;
 import com.gtnewhorizons.horizonqa.api.event.EventLog;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
@@ -45,7 +44,6 @@ import cpw.mods.fml.common.Loader;
  * {@link #pos(String)}, including structure rotation, and throw {@link LabelResolutionException} when
  * the fixture has no matching label.
  */
-@Experimental
 @SuppressWarnings("unused")
 public class GameTestHelper {
 
