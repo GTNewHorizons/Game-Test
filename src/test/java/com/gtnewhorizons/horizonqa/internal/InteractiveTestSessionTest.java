@@ -10,6 +10,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Set;
 
 import org.junit.After;
@@ -71,12 +72,49 @@ public class InteractiveTestSessionTest {
         assertFalse(worldOwnedCellIds(session).contains(definition.getTestId()));
     }
 
+    @Test
+    public void resetReleasesInteractiveOwnership() {
+        InteractiveTestSession session = InteractiveTestSession.get();
+        GameTestRunner runner = runner(session);
+        assertTrue(runner.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> runner.scheduleOnFirstTick(() -> {})));
+
+        InteractiveTestSession.reset();
+
+        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.BATCH, () -> {}));
+    }
+
+    @Test
+    public void interactiveLaunchCannotReplaceReportedBatch() {
+        GameTestDefinition definition = definition("horizonqatest:empty");
+        GameTestBatchRunner batch = new GameTestBatchRunner(
+            Collections.singletonList(definition),
+            Collections.emptyMap(),
+            Collections.emptyMap());
+        batch.start();
+
+        assertEquals(
+            0,
+            InteractiveTestSession.get()
+                .launchTest(definition));
+        assertTrue(GameTestRunner.isBatchActive());
+    }
+
     @SuppressWarnings("unchecked")
     private static Set<String> worldOwnedCellIds(InteractiveTestSession session) {
         try {
             Field field = InteractiveTestSession.class.getDeclaredField("worldOwnedCellIds");
             field.setAccessible(true);
             return (Set<String>) field.get(session);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    private static GameTestRunner runner(InteractiveTestSession session) {
+        try {
+            Field field = InteractiveTestSession.class.getDeclaredField("runner");
+            field.setAccessible(true);
+            return (GameTestRunner) field.get(session);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }

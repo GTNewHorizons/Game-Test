@@ -20,6 +20,8 @@ import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 public class GameTestRunnerTest {
 
     private static int cleanupRuns;
+    private static boolean cleanupAcquiredOwnership;
+    private static GameTestRunner cleanupCandidate;
 
     private static final class FakeInstance extends GameTestInstance {
 
@@ -59,6 +61,8 @@ public class GameTestRunnerTest {
     public void resetExecution() {
         GameTestRunner.shutdown();
         cleanupRuns = 0;
+        cleanupAcquiredOwnership = false;
+        cleanupCandidate = null;
     }
 
     @Test
@@ -210,6 +214,7 @@ public class GameTestRunnerTest {
 
     @Test
     public void shutdownClearsOwnershipAndRunsInstanceCleanup() throws Exception {
+        cleanupCandidate = new GameTestRunner();
         GameTestDefinition definition = new GameTestDefinition(
             "horizonqatest:Runner.pending",
             GameTestRunnerTest.class.getMethod("pendingTest", GameTestHelper.class),
@@ -229,10 +234,11 @@ public class GameTestRunnerTest {
         assertFalse(GameTestRunner.isBatchActive());
         assertFalse(GameTestRunner.isTurboActive());
         assertEquals(1, cleanupRuns);
+        assertFalse(cleanupAcquiredOwnership);
         assertEquals(GameTestStatus.ERROR, instance.getStatus());
         assertTrue(instance.getFailureCause() instanceof GameTestInfrastructureException);
         assertEquals("EXECUTION_ABORTED", ((GameTestInfrastructureException) instance.getFailureCause()).kind());
-        assertTrue(new GameTestRunner().tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
+        assertTrue(cleanupCandidate.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {}));
     }
 
     @Test
@@ -279,7 +285,11 @@ public class GameTestRunnerTest {
     }
 
     public static void pendingTest(GameTestHelper helper) {
-        helper.afterTest(() -> cleanupRuns++);
+        helper.afterTest(() -> {
+            cleanupRuns++;
+            GameTestRunner.shutdown();
+            cleanupAcquiredOwnership = cleanupCandidate.tryStart(GameTestRunner.Kind.INTERACTIVE, () -> {});
+        });
     }
 
     private static void tick() {

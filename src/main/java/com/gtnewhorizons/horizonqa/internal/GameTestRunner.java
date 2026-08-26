@@ -13,6 +13,7 @@ public final class GameTestRunner {
     private final List<GameTestInstance> instances = new ArrayList<>();
     private Runnable onAllDone;
     private Runnable onFirstTick;
+    private boolean aborting;
     private boolean running;
     private Kind kind;
 
@@ -97,6 +98,10 @@ public final class GameTestRunner {
         }
     }
 
+    void abortIfActive(String message) {
+        abortAndRelease(message, null);
+    }
+
     private void doTickStart() {
         if (onFirstTick != null) {
             Runnable action = onFirstTick;
@@ -149,7 +154,7 @@ public final class GameTestRunner {
                 kind = requestedKind;
                 return true;
             }
-            return activeRunner == this && kind == Kind.INTERACTIVE && requestedKind == Kind.INTERACTIVE;
+            return activeRunner == this && !aborting && kind == Kind.INTERACTIVE && requestedKind == Kind.INTERACTIVE;
         }
     }
 
@@ -160,14 +165,21 @@ public final class GameTestRunner {
     }
 
     private void abortAndRelease(String message, Throwable cause) {
+        synchronized (GameTestRunner.class) {
+            if (activeRunner != this || aborting) return;
+            aborting = true;
+        }
         List<GameTestInstance> aborted = new ArrayList<>(instances);
         instances.clear();
         onAllDone = null;
         onFirstTick = null;
         running = false;
-        release();
-        for (GameTestInstance instance : aborted) {
-            instance.abortExecution(message, cause);
+        try {
+            for (GameTestInstance instance : aborted) {
+                instance.abortExecution(message, cause);
+            }
+        } finally {
+            release();
         }
     }
 
@@ -176,6 +188,7 @@ public final class GameTestRunner {
             if (activeRunner == this) {
                 activeRunner = null;
             }
+            aborting = false;
             kind = null;
         }
     }
