@@ -29,7 +29,6 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
-import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
@@ -37,6 +36,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand.LabelMutationResult;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
@@ -394,7 +394,7 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
 
-        List<CellRecord> cells = new ArrayList<>(
+        List<TestCell> cells = new ArrayList<>(
             InteractiveTestSession.get()
                 .getKnownCells());
         if (cells.isEmpty()) {
@@ -404,7 +404,7 @@ public class HorizonQACommand extends CommandBase {
         }
 
         String testId = args[1];
-        CellRecord cell = HorizonQACommandUtils.findTestById(testId, cells);
+        TestCell cell = HorizonQACommandUtils.findTestById(testId, cells);
         if (cell == null) {
             sender.addChatMessage(
                 new ChatComponentText(
@@ -593,7 +593,7 @@ public class HorizonQACommand extends CommandBase {
         int py = (int) Math.floor(player.posY);
         int pz = (int) Math.floor(player.posZ);
 
-        CellRecord cell = HorizonQACommandUtils.findTestContaining(
+        TestCell cell = HorizonQACommandUtils.findTestContaining(
             px,
             py,
             pz,
@@ -615,7 +615,7 @@ public class HorizonQACommand extends CommandBase {
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
-        CellRecord cell = HorizonQACommandUtils.findTestAlongLook(
+        TestCell cell = HorizonQACommandUtils.findTestAlongLook(
             player,
             InteractiveTestSession.get()
                 .getKnownCells());
@@ -629,7 +629,7 @@ public class HorizonQACommand extends CommandBase {
         relaunchCell(sender, cell);
     }
 
-    private static void relaunchCell(ICommandSender sender, CellRecord cell) {
+    private static void relaunchCell(ICommandSender sender, TestCell cell) {
         GameTestDefinition def = findDefinition(cell.testId);
         if (def == null) {
             sender.addChatMessage(
@@ -662,7 +662,7 @@ public class HorizonQACommand extends CommandBase {
         int py = (int) Math.floor(player.posY);
         int pz = (int) Math.floor(player.posZ);
 
-        CellRecord cell = HorizonQACommandUtils.findTestContaining(
+        TestCell cell = HorizonQACommandUtils.findTestContaining(
             px,
             py,
             pz,
@@ -1253,7 +1253,7 @@ public class HorizonQACommand extends CommandBase {
 
     private static String[] knownCellIds() {
         List<String> ids = new ArrayList<>();
-        for (CellRecord cell : InteractiveTestSession.get()
+        for (TestCell cell : InteractiveTestSession.get()
             .getKnownCells()) {
             ids.add(cell.testId);
         }

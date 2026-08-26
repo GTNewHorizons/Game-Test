@@ -9,10 +9,10 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import org.lwjgl.opengl.GL11;
 
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
-import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.GameTestInstance;
 import com.gtnewhorizons.horizonqa.internal.GameTestStatus;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
+import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.visual.drawables.DebugBeacon;
 import com.gtnewhorizons.horizonqa.visual.drawables.FloatingText;
@@ -48,7 +48,7 @@ public final class GameTestOverlayRenderer {
         long wt = mc.theWorld.getTotalWorldTime();
 
         InteractiveTestSession session = InteractiveTestSession.get();
-        Collection<CellRecord> cells = session.getKnownCells();
+        Collection<TestCell> cells = session.getKnownCells();
         if (cells.isEmpty() && VisualManager.getGhosts()
             .isEmpty()) return;
 
@@ -69,7 +69,7 @@ public final class GameTestOverlayRenderer {
 
         GL11.glTranslated(-camX, -camY, -camZ);
 
-        for (CellRecord cell : cells) {
+        for (TestCell cell : cells) {
             GameTestInstance inst = session.getLastInstance(cell.testId);
             GameTestStatus status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;
@@ -98,7 +98,7 @@ public final class GameTestOverlayRenderer {
             ghost.render(pt);
         }
 
-        for (CellRecord cell : cells) {
+        for (TestCell cell : cells) {
             GameTestInstance inst = session.getLastInstance(cell.testId);
             GameTestStatus status = inst != null ? inst.getStatus() : GameTestStatus.NOT_STARTED;
             if (status == GameTestStatus.NOT_STARTED) continue;

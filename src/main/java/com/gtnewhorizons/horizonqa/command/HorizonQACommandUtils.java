@@ -5,14 +5,16 @@ import java.util.Collection;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.Vec3;
 
+import com.gtnewhorizons.horizonqa.internal.TestCell;
+
 public final class HorizonQACommandUtils {
 
     private static final double RAY_LENGTH = 64.0;
 
     private HorizonQACommandUtils() {}
 
-    public static CellRecord findTestContaining(int x, int y, int z, Collection<CellRecord> cells) {
-        for (CellRecord cell : cells) {
+    public static TestCell findTestContaining(int x, int y, int z, Collection<TestCell> cells) {
+        for (TestCell cell : cells) {
             if (x >= cell.minX && x <= cell.maxX
                 && y >= cell.minY
                 && y <= cell.maxY
@@ -24,8 +26,8 @@ public final class HorizonQACommandUtils {
         return null;
     }
 
-    public static CellRecord findTestById(String testId, Collection<CellRecord> cells) {
-        for (CellRecord cell : cells) {
+    public static TestCell findTestById(String testId, Collection<TestCell> cells) {
+        for (TestCell cell : cells) {
             if (cell.testId.equals(testId)) {
                 return cell;
             }
@@ -33,7 +35,7 @@ public final class HorizonQACommandUtils {
         return null;
     }
 
-    public static CellRecord findTestAlongLook(EntityPlayer player, Collection<CellRecord> cells) {
+    public static TestCell findTestAlongLook(EntityPlayer player, Collection<TestCell> cells) {
         double ox = player.posX;
         double oy = player.posY + player.eyeHeight;
         double oz = player.posZ;
@@ -42,7 +44,7 @@ public final class HorizonQACommandUtils {
         double fy = oy + look.yCoord * RAY_LENGTH;
         double fz = oz + look.zCoord * RAY_LENGTH;
 
-        for (CellRecord cell : cells) {
+        for (TestCell cell : cells) {
             if (rayIntersectsAABB(ox, oy, oz, fx, fy, fz, cell)) {
                 return cell;
             }
@@ -50,10 +52,10 @@ public final class HorizonQACommandUtils {
         return null;
     }
 
-    public static CellRecord findNearestTest(int x, int y, int z, Collection<CellRecord> cells) {
-        CellRecord nearest = null;
+    public static TestCell findNearestTest(int x, int y, int z, Collection<TestCell> cells) {
+        TestCell nearest = null;
         double nearestDistSq = Double.MAX_VALUE;
-        for (CellRecord cell : cells) {
+        for (TestCell cell : cells) {
             double cx = (cell.minX + cell.maxX) * 0.5;
             double cy = (cell.minY + cell.maxY) * 0.5;
             double cz = (cell.minZ + cell.maxZ) * 0.5;
@@ -68,7 +70,7 @@ public final class HorizonQACommandUtils {
     }
 
     private static boolean rayIntersectsAABB(double ox, double oy, double oz, double fx, double fy, double fz,
-        CellRecord cell) {
+        TestCell cell) {
         double dx = fx - ox, dy = fy - oy, dz = fz - oz;
         double tmin = 0.0, tmax = 1.0;
 
@@ -118,28 +120,5 @@ public final class HorizonQACommandUtils {
         }
 
         return true;
-    }
-
-    public static final class CellRecord {
-
-        public final String testId;
-
-        public final int originX, originY, originZ;
-
-        public final int minX, minY, minZ, maxX, maxY, maxZ;
-
-        public CellRecord(String testId, int originX, int originY, int originZ, int minX, int minY, int minZ, int maxX,
-            int maxY, int maxZ) {
-            this.testId = testId;
-            this.originX = originX;
-            this.originY = originY;
-            this.originZ = originZ;
-            this.minX = minX;
-            this.minY = minY;
-            this.minZ = minZ;
-            this.maxX = maxX;
-            this.maxY = maxY;
-            this.maxZ = maxZ;
-        }
     }
 }

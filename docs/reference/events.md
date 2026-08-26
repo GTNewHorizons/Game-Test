@@ -52,7 +52,8 @@ Events come from three places:
 1. **Author-facing helpers** record successful setup or assertion-related actions such as bus insertion, fluid filling, EU job registration, maintenance repair, and temporary recipe changes.
 2. **The warp differ** snapshots watched controllers and emits formation, recipe, maintenance, and explosion transitions.
 3. **Sequences and named per-tick callbacks** record step boundaries, callback registration, and actual callback state changes.
-4. **The test instance and runners** record test start, failure, finish, and supported isolation failures. The reported batch runner also records successful structure placement.
+4. **Fixture preparation, the test instance, and runners** record successful structure placement, test start,
+   failure, finish, and supported isolation failures.
 
 `Multiblock.runRecipe` watches its controller automatically. `fastForwardTicks(n)` does not watch any controller unless the absolute positions are passed to its overload.
 
@@ -64,7 +65,7 @@ This catalog lists event records with active emit sites in the current implement
 
 | Record | Emitted when |
 |---|---|
-| `StructurePlaced` | The reported batch runner places a template successfully |
+| `StructurePlaced` | Fixture preparation places a template successfully |
 | `TestStarted` | The test body is about to run |
 | `WarpStarted` | A time-warp begins |
 | `WarpFinished` | A time-warp ends |

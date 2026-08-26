@@ -24,7 +24,6 @@ import org.junit.After;
 import org.junit.Test;
 
 import com.gtnewhorizons.horizonqa.api.GameTestHelper;
-import com.gtnewhorizons.horizonqa.command.HorizonQACommandUtils.CellRecord;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
 import com.gtnewhorizons.horizonqa.internal.DuplicateTestId;
@@ -33,6 +32,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
@@ -109,9 +109,9 @@ public class HorizonQACommandTest {
         seedRegistry(
             Arrays.asList(definition("good:Suite.placed"), definition("good:Suite.notPlaced")),
             Collections.emptyList());
-        Map<String, CellRecord> knownCells = (Map<String, CellRecord>) sessionField("knownCells")
+        Map<String, TestCell> knownCells = (Map<String, TestCell>) sessionField("knownCells")
             .get(InteractiveTestSession.get());
-        knownCells.put("good:Suite.placed", new CellRecord("good:Suite.placed", 0, 64, 0, 0, 64, 0, 4, 68, 4));
+        knownCells.put("good:Suite.placed", new TestCell("good:Suite.placed", 0, 64, 0, 0, 64, 0, 4, 68, 4));
 
         List<String> completions = new HorizonQACommand()
             .addTabCompletionOptions(new RecordingSender(), new String[] { "tp", "" });
