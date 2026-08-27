@@ -69,7 +69,7 @@ public class ParameterizedRegistryOrderingTest {
             parameterized(baseTestId, "alpha", 1, testMethod),
             parameterized(baseTestId, "middle", 2, testMethod));
 
-        Method buildBatches = GameTestBatchRunner.class
+        Method buildBatches = ReportedRun.class
             .getDeclaredMethod("buildBatches", List.class, java.util.Map.class, java.util.Map.class);
         buildBatches.setAccessible(true);
         List<?> batches = (List<?>) buildBatches

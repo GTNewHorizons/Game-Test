@@ -58,13 +58,13 @@ Examples:
 :   `void` forces Horizon-QA's dedicated void world type for dimension 0. `normal` leaves the server's configured or existing world type alone.
 
 `horizonqa.autoRun`
-:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still use reported non-interactive batches in `ci` mode. If enabled in interactive mode, the startup batch uses the batch runner; interactive launch, relaunch, and clear commands are rejected until that batch finishes.
+:   Runs the selected tests automatically after server startup. When this is `false`, `/horizonqa run`, `/horizonqa runall`, and `/horizonqa runfailed` still start Reported Runs in `ci` mode. If enabled in interactive mode, startup uses the Reported Run lifecycle; interactive launch, relaunch, and clear commands are rejected until it finishes.
 
 `horizonqa.stopServer`
-:   Requests process exit after an auto-run or reported batch finishes. When `false`, the server remains up after the result is written.
+:   Requests process exit after a Reported Run finishes. When `false`, the server remains up after the result is written.
 
 `horizonqa.turbo`
-:   Runs up to this many server ticks for each normal 20 TPS accumulator slot while a reported batch is active in `ci` mode. `1` leaves the normal tick rate unchanged. Turbo stops when the reported batch finishes; interactive test sessions and server time outside that window keep the normal cadence. Tick-scheduled player/world autosaves and vanilla's `Can't keep up!` warning are suppressed only while turbo is active.
+:   Runs up to this many server ticks for each normal 20 TPS accumulator slot while a Reported Run is active in `ci` mode. `1` leaves the normal tick rate unchanged. Turbo stops when the run finishes; interactive test sessions and server time outside that window keep the normal cadence. Tick-scheduled player/world autosaves and vanilla's `Can't keep up!` warning are suppressed only while turbo is active.
 
     Every tick body still runs in order. Code that mixes ticks with wall-clock time can therefore behave differently under turbo, and a configured multiplier can still be limited by the CPU cost of a tick.
 
@@ -80,13 +80,13 @@ Useful combinations:
 # CI-style autorun, normal terrain, keep the server available afterward
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.world=normal --mcJvmArgs=-Dhorizonqa.stopServer=false
 
-# Manual reported batches at Y=128 in the configured world
+# Manual Reported Runs at Y=128 in the configured world
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs=-Dhorizonqa.world=normal --mcJvmArgs=-Dhorizonqa.gridOrigin=0,128,0
 
-# Manual reported batches with CI overrides
+# Manual Reported Runs with CI overrides
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 
-# Ten times the normal tick target during the reported batch
+# Ten times the normal tick target during the Reported Run
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.turbo=10 --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
@@ -232,7 +232,7 @@ is omitted when empty.
 |------|----------|------------------------------------------------------------------------------------------------------------------------|
 | `0`  | `passed` | No required test failures and no infrastructure errors                                                                 |
 | `1`  | `failed` | At least one required test failed or timed out                                                                         |
-| `2`  | `error`  | Infrastructure, configuration, discovery-selection, template, cleanup, report-path, reporting, or incomplete-run error |
+| `2`  | `error`  | Infrastructure, configuration, discovery-selection, template, cleanup, execution-abort, report-path, reporting, or incomplete-run error |
 
 Optional failures and intentional skips do not change the process exit code by themselves. They are counted in status JSON and represented as skipped in JUnit XML.
 

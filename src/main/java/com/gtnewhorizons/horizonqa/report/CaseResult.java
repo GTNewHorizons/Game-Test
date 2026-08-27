@@ -302,6 +302,7 @@ public record CaseResult(String id, String classname, String name, Status status
 
     private static Throwable failureCauseForReport(GameTestInstance inst) {
         if (inst.getStatus() == GameTestStatus.ERROR) {
+            if (inst.isExecutionAborted()) return inst.getFailureCause();
             return inst.getCleanupFailureCause() != null ? inst.getCleanupFailureCause() : inst.getFailureCause();
         }
         return inst.getFailureCause();

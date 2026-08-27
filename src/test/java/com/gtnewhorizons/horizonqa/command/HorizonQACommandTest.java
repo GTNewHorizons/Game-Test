@@ -33,6 +33,7 @@ import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.RunResult;
@@ -44,7 +45,7 @@ public class HorizonQACommandTest {
         seedRegistry(Collections.emptyList(), Collections.emptyList());
         GameTestRunner.shutdown();
         InteractiveTestSession.reset();
-        HorizonQACommand.resetReportedResults();
+        ReportedRun.clearLastResult();
     }
 
     @Test
@@ -167,8 +168,7 @@ public class HorizonQACommandTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void rememberedReportedBatchResultKeepsFailedIdsForRunfailed() throws Exception {
+    public void reportedResultSuppliesFailedIdsForRunfailed() {
         RunResult result = RunResult.completedCases(
             "ci",
             Arrays.asList(
@@ -180,9 +180,7 @@ public class HorizonQACommandTest {
             Collections.emptyList(),
             "TEST.xml");
 
-        HorizonQACommand.rememberReportedBatchResult(result);
-
-        Set<String> failedIds = (Set<String>) commandField("LAST_REPORTED_FAILED_IDS").get(null);
+        Set<String> failedIds = HorizonQACommand.failedIds(result);
         assertFalse(failedIds.contains("mod:Suite.passed"));
         assertFalse(failedIds.contains("mod:Suite.skipped"));
         assertTrue(failedIds.contains("mod:Suite.failed"));
@@ -272,12 +270,6 @@ public class HorizonQACommandTest {
 
     private static Field field(String name) throws Exception {
         Field field = GameTestRegistry.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
-    }
-
-    private static Field commandField(String name) throws Exception {
-        Field field = HorizonQACommand.class.getDeclaredField(name);
         field.setAccessible(true);
         return field;
     }

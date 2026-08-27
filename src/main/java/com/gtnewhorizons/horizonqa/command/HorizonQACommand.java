@@ -30,21 +30,18 @@ import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.api.TestPos;
 import com.gtnewhorizons.horizonqa.api.gt.GTNHGameTestHelper;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryIssue;
-import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestDefinition;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
 import com.gtnewhorizons.horizonqa.internal.InvalidTestDefinition;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.internal.TestCell;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand.LabelMutationResult;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
-import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
-import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
-import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureLoader;
 import com.gtnewhorizons.horizonqa.structure.HybridStructureTemplate;
@@ -56,7 +53,6 @@ public class HorizonQACommand extends CommandBase {
     private static final String[] SUBCOMMANDS = { "run", "runall", "runfailed", "tp", "runthis", "runthat", "pos",
         "clearall", "load", "export", "clear", "label", "labels" };
     private static final String[] LABEL_SUBCOMMANDS = { "list", "remove", "clear" };
-    private static final Set<String> LAST_REPORTED_FAILED_IDS = new LinkedHashSet<>();
 
     @Override
     public String getCommandName() {
@@ -218,7 +214,7 @@ public class HorizonQACommand extends CommandBase {
                     EnumChatFormatting.YELLOW + "Skipped: " + def.getTestId() + " - " + def.getDiscoverySkipReason()));
             return;
         }
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTest(def);
         if (launched > 0) {
@@ -272,7 +268,7 @@ public class HorizonQACommand extends CommandBase {
                     + " test(s).");
             return;
         }
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         InteractiveTestSession session = InteractiveTestSession.get();
         session.clearAll();
         int skipped = 0;
@@ -321,10 +317,6 @@ public class HorizonQACommand extends CommandBase {
     }
 
     private void handleRunFailed(ICommandSender sender, String[] args) {
-        if (HorizonQAProperties.usesReportedCommandBatches() && GameTestRunner.isBatchActive()) {
-            reportBatchAlreadyRunning(sender);
-            return;
-        }
         Set<String> failedIds = failedIdsForCurrentMode();
         if (failedIds.isEmpty()) {
             sender.addChatMessage(new ChatComponentText(EnumChatFormatting.GREEN + "No failed tests to re-run."));
@@ -354,7 +346,7 @@ public class HorizonQACommand extends CommandBase {
                     + " failed test(s).");
             return;
         }
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         int launched = InteractiveTestSession.get()
             .launchTests(defs);
         if (launched > 0) {
@@ -447,95 +439,65 @@ public class HorizonQACommand extends CommandBase {
             return InteractiveTestSession.get()
                 .getFailedIds();
         }
-        return new LinkedHashSet<>(LAST_REPORTED_FAILED_IDS);
+        return failedIds(ReportedRun.lastResult());
+    }
+
+    static Set<String> failedIds(RunResult result) {
+        Set<String> failedIds = new LinkedHashSet<>();
+        if (result == null) return failedIds;
+        for (CaseResult resultCase : result.cases()) {
+            if (resultCase.failed() || resultCase.timedOut() || resultCase.error()) {
+                failedIds.add(resultCase.id());
+            }
+        }
+        return failedIds;
     }
 
     private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests,
         String launchedMessage) {
-        if (GameTestRunner.isBatchActive()) {
-            reportBatchAlreadyRunning(sender);
+        List<PropertyIssue> propertyIssues = new ArrayList<>();
+        ReportedRun.StartStatus status = new ReportedRun(
+            tests,
+            GameTestRegistry.getBeforeBatchMethods(),
+            GameTestRegistry.getAfterBatchMethods(),
+            Collections.emptyList(),
+            () -> {
+                propertyIssues.addAll(HorizonQAProperties.reportInfrastructureIssues());
+                logPropertyIssues(propertyIssues);
+                return toPropertyIssueResults(propertyIssues);
+            }).start();
+        if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
+            reportExecutionAlreadyActive(sender);
             return;
         }
-        if (!preflightReportOutputs(sender)) {
-            return;
-        }
-        try {
-            GameTestBatchRunner batchRunner = new GameTestBatchRunner(
-                tests,
-                GameTestRegistry.getBeforeBatchMethods(),
-                GameTestRegistry.getAfterBatchMethods(),
-                Collections.emptyList(),
-                HorizonQACommand::rememberReportedBatchResult);
-            batchRunner.start();
-        } catch (IllegalStateException e) {
-            reportBatchAlreadyRunning(sender);
-            return;
-        }
-        sender.addChatMessage(new ChatComponentText(launchedMessage));
-    }
-
-    private static boolean preflightReportOutputs(ICommandSender sender) {
-        List<PropertyIssue> propertyIssues = HorizonQAProperties.reportInfrastructureIssues();
-        if (!propertyIssues.isEmpty()) {
-            logPropertyIssues(propertyIssues);
-            File reportFile = HorizonQAProperties.junitReportFile();
-            RunResult result = RunResult
-                .preRun(HorizonQAProperties.modeName(), toPropertyIssueResults(propertyIssues), reportFile.getPath());
-            RunReportWriter.write(result, HorizonQAMod.LOG);
+        if (status == ReportedRun.StartStatus.STARTED) {
+            sender.addChatMessage(new ChatComponentText(launchedMessage));
+        } else if (!propertyIssues.isEmpty()) {
             sender.addChatMessage(
                 new ChatComponentText(
-                    EnumChatFormatting.RED + "Reported-batch configuration is invalid; tests were not launched. "
+                    EnumChatFormatting.RED + "Reported-run configuration is invalid; tests were not launched. "
                         + "Check the report files and server log for details."));
-            return false;
+        } else {
+            RunResult result = ReportedRun.lastResult();
+            EnumChatFormatting color = result != null && result.passedRun() ? EnumChatFormatting.YELLOW
+                : EnumChatFormatting.RED;
+            sender.addChatMessage(
+                new ChatComponentText(
+                    color + "Reported run completed before tests were launched. Check the reports and server log."));
         }
+    }
 
-        List<IssueResult> reportPathIssues = ReportPathPreflight
-            .check(HorizonQAProperties.junitReportFile(), HorizonQAProperties.statusReportFile());
-        if (reportPathIssues.isEmpty()) {
-            return true;
-        }
-
-        HorizonQAMod.LOG.error("Report path preflight failed; reported batch was not launched.");
-        for (IssueResult issue : reportPathIssues) {
-            HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
-        }
-        File reportFile = HorizonQAProperties.junitReportFile();
-        RunResult result = RunResult.preRun(HorizonQAProperties.modeName(), reportPathIssues, reportFile.getPath());
-        ConsoleReporter.report(result);
+    private static void reportExecutionAlreadyActive(ICommandSender sender) {
         sender.addChatMessage(
             new ChatComponentText(
-                EnumChatFormatting.RED + "Report path preflight failed; tests were not launched. "
-                    + "Check the server log for details."));
-        return false;
+                EnumChatFormatting.RED + "A test execution is already active. Wait for it to finish first."));
     }
 
-    public static void rememberReportedBatchResult(RunResult result) {
-        LAST_REPORTED_FAILED_IDS.clear();
-        if (result == null) {
-            return;
-        }
-        for (CaseResult resultCase : result.cases()) {
-            if (resultCase.failed() || resultCase.timedOut() || resultCase.error()) {
-                LAST_REPORTED_FAILED_IDS.add(resultCase.id());
-            }
-        }
-    }
-
-    public static void resetReportedResults() {
-        LAST_REPORTED_FAILED_IDS.clear();
-    }
-
-    private static void reportBatchAlreadyRunning(ICommandSender sender) {
-        sender.addChatMessage(
-            new ChatComponentText(
-                EnumChatFormatting.RED + "A GameTest batch is already running. Wait for it to finish first."));
-    }
-
-    private static boolean rejectBatchRunning(ICommandSender sender) {
+    private static boolean rejectReportedRunActive(ICommandSender sender) {
         if (!GameTestRunner.isBatchActive()) {
             return false;
         }
-        reportBatchAlreadyRunning(sender);
+        reportExecutionAlreadyActive(sender);
         return true;
     }
 
@@ -573,7 +535,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleRunThis(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -599,7 +561,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleRunThat(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa run <testId>")) return;
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;
 
@@ -697,7 +659,7 @@ public class HorizonQACommand extends CommandBase {
 
     private void handleClearAll(ICommandSender sender, String[] args) {
         if (rejectInteractiveOnlyInNonInteractiveMode(sender, "/horizonqa runall")) return;
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
         int count = InteractiveTestSession.get()
             .getKnownCells()
             .size();
@@ -720,7 +682,7 @@ public class HorizonQACommand extends CommandBase {
             return;
         }
         if (rejectInteractiveOnly(sender)) return;
-        if (rejectBatchRunning(sender)) return;
+        if (rejectReportedRunActive(sender)) return;
 
         EntityPlayer player = requirePlayer(sender);
         if (player == null) return;

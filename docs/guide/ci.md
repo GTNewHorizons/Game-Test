@@ -18,9 +18,9 @@ In `horizonqa.mode=ci`, Horizon-QA discovers tests, runs the selected batch auto
 ```mermaid
 flowchart LR
     accTitle: CI process boundary and outputs
-    accDescr: The runServer command forwards Minecraft JVM arguments to the server, which runs a reported batch and produces three outputs.
+    accDescr: The runServer command forwards Minecraft JVM arguments to the server, which runs a Reported Run and produces three outputs.
     Gradle["runServer with --mcJvmArgs"] --> JVM["Minecraft server JVM"]
-    JVM --> Batch["Horizon-QA reported batch"]
+    JVM --> Batch["Horizon-QA Reported Run"]
     Batch --> XML["TEST-horizonqa.xml"]
     Batch --> JSON["horizonqa-result.json"]
     Batch --> Exit["Process exit 0, 1, or 2"]
@@ -32,7 +32,10 @@ Use `horizonqa.mode=ci -Dhorizonqa.autoRun=false` when you want report files fro
 ./gradlew runServer --mcJvmArgs=-Dhorizonqa.mode=ci --mcJvmArgs=-Dhorizonqa.autoRun=false --mcJvmArgs="-Dhorizonqa.reportDir=${PWD}/build/horizonqa"
 ```
 
-Manual reported batches use the same report formats as automatic CI and default to the same void world policy. Then run `/horizonqa run <testId>`, `/horizonqa runall [selector]`, or `/horizonqa runfailed`. The selected batch writes JUnit XML and status JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests` and `horizonqa.allowNoTests` only affect automatic execution; for manual reported batches, use the command arguments to choose tests.
+Manual Reported Runs use the same report formats as automatic CI and default to the same void world policy. Then run
+`/horizonqa run <testId>`, `/horizonqa runall [selector]`, or `/horizonqa runfailed`. The run writes JUnit XML and status
+JSON when it finishes, but the server does not auto-run tests at startup and does not exit afterward. `horizonqa.tests`
+and `horizonqa.allowNoTests` only affect automatic execution; for manual runs, use the command arguments to choose tests.
 
 Modes are presets. Override specific behavior when the workflow needs it:
 
@@ -99,7 +102,9 @@ Relative paths resolve from the Minecraft server process working directory, whic
 | `name`       | Method name, with `[caseName]` for a parameterized case |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
-Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems known before JUnit writing, such as cleanup, template, configuration, selection, and report-path failures, are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+
+Reports are attempted once in order: console, status JSON, then JUnit XML. A report-sink failure is added to the run result for later sinks and the process exit code, so JUnit describes any console or status-reporting failure. If JUnit itself fails, no JUnit artifact can describe that failure.
 
 Parameterized cases include a `parameters=[…]` line in `<system-out>`. When event recording is enabled, each
 `<testcase>` may also include ordered `[t=NNN] [category] summary` lines there. The server console prints a compact
@@ -242,6 +247,11 @@ A test is intentionally skipped when its holder has a missing `requiredMods` ent
 - do not change the process exit code by themselves.
 
 Setup-blocked cases remain `notStarted` with `blockedByIssueId`; they are not intentional assumptions and their underlying infrastructure issue still produces exit code `2`.
+
+If the server stops or reported execution aborts before completion, active cases become `error` with failure type
+`EXECUTION_ABORTED`. Selected cases that did not start remain `notStarted` and reference the fatal run-level abort issue.
+The run still attempts batch and instance cleanup, writes its reports, and exits with infrastructure status `2`; a
+server-stopping callback never starts a second process exit.
 
 ## GitHub Actions handling
 

@@ -102,6 +102,10 @@ public final class GameTestRunner {
         abortAndRelease(message, null);
     }
 
+    void abortIfActive(String message, Throwable cause) {
+        abortAndRelease(message, cause);
+    }
+
     private void doTickStart() {
         if (onFirstTick != null) {
             Runnable action = onFirstTick;
@@ -172,13 +176,24 @@ public final class GameTestRunner {
         onAllDone = null;
         onFirstTick = null;
         running = false;
+        Throwable abortFailure = null;
         try {
             for (GameTestInstance instance : aborted) {
-                instance.abortExecution(message, cause);
+                try {
+                    instance.abortExecution(message, cause);
+                } catch (Throwable failure) {
+                    if (abortFailure == null) {
+                        abortFailure = failure;
+                    } else if (failure != abortFailure) {
+                        abortFailure.addSuppressed(failure);
+                    }
+                }
             }
         } finally {
             release();
         }
+        if (abortFailure instanceof RuntimeException runtime) throw runtime;
+        if (abortFailure instanceof Error error) throw error;
     }
 
     private void release() {
