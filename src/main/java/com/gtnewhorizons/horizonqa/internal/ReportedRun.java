@@ -26,6 +26,7 @@ import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.horizonqa.HorizonQAMod;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties;
 import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
+import com.gtnewhorizons.horizonqa.internal.GameTestCatalog.BatchHooks;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
@@ -63,13 +64,11 @@ public final class ReportedRun {
     private boolean reportOutputsReady;
     private boolean exitWhenComplete;
 
-    public ReportedRun(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
-        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues) {
-        this(tests, beforeBatchMethods, afterBatchMethods, issues, Collections::emptyList);
+    public ReportedRun(GameTestCatalog catalog, List<GameTestDefinition> tests, List<IssueResult> issues) {
+        this(catalog, tests, issues, Collections::emptyList);
     }
 
-    public ReportedRun(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
-        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues,
+    public ReportedRun(GameTestCatalog catalog, List<GameTestDefinition> tests, List<IssueResult> issues,
         Supplier<List<IssueResult>> configurationIssues) {
         runner = new GameTestRunner();
         fixturePreparation = new FixturePreparation();
@@ -84,10 +83,22 @@ public final class ReportedRun {
                 runnableTests.add(test);
             }
         }
-        batches = buildBatches(runnableTests, beforeBatchMethods, afterBatchMethods);
+        batches = buildBatches(runnableTests, Objects.requireNonNull(catalog, "catalog"));
         if (issues != null) {
             this.issues.addAll(issues);
         }
+    }
+
+    private ReportedRun(Supplier<List<IssueResult>> configurationIssues) {
+        runner = new GameTestRunner();
+        fixturePreparation = new FixturePreparation();
+        this.configurationIssues = Objects.requireNonNull(configurationIssues, "configurationIssues");
+        runnableTests = Collections.emptyList();
+        batches = Collections.emptyList();
+    }
+
+    public static ReportedRun configurationFailure(Supplier<List<IssueResult>> configurationIssues) {
+        return new ReportedRun(configurationIssues);
     }
 
     public StartStatus start() {
@@ -421,8 +432,7 @@ public final class ReportedRun {
         return tests;
     }
 
-    private static List<Batch> buildBatches(List<GameTestDefinition> tests, Map<String, List<Method>> beforeMethods,
-        Map<String, List<Method>> afterMethods) {
+    private static List<Batch> buildBatches(List<GameTestDefinition> tests, GameTestCatalog catalog) {
 
         Map<String, List<GameTestDefinition>> testsByBatch = new TreeMap<>();
         for (GameTestDefinition def : tests) {
@@ -435,9 +445,13 @@ public final class ReportedRun {
             entry.getValue()
                 .sort(GameTestDefinition.executionOrder());
             String name = entry.getKey();
-            List<Method> before = sortedHookMethods(beforeMethods == null ? null : beforeMethods.get(name));
-            List<Method> after = sortedHookMethods(afterMethods == null ? null : afterMethods.get(name));
-            result.add(new Batch(name, entry.getValue(), before, after));
+            BatchHooks hooks = catalog.batchHooks(name);
+            result.add(
+                new Batch(
+                    name,
+                    entry.getValue(),
+                    sortedHookMethods(hooks.beforeMethods()),
+                    sortedHookMethods(hooks.afterMethods())));
         }
         return result;
     }
