@@ -102,7 +102,9 @@ Relative paths resolve from the Minecraft server process working directory, whic
 | `name`       | Method name, with `[caseName]` for a parameterized case |
 | `time`       | Duration in seconds (`testTicks / 20`) |
 
-Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems such as cleanup, template, configuration, selection, report-path, and reporting failures are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+Required assertion failures and timeouts are emitted as `<failure>`. Infrastructure problems known before JUnit writing, such as cleanup, template, configuration, selection, and report-path failures, are emitted as `<error>`. Optional failures and intentional skips are emitted as `<skipped>` so JUnit publishers can show them without failing the suite aggregate. Intentional skips put their reason in the element's `message` attribute.
+
+Reports are attempted once in order: console, status JSON, then JUnit XML. A report-sink failure is added to the run result for later sinks and the process exit code, so JUnit describes any console or status-reporting failure. If JUnit itself fails, no JUnit artifact can describe that failure.
 
 Parameterized cases include a `parameters=[…]` line in `<system-out>`. When event recording is enabled, each
 `<testcase>` may also include ordered `[t=NNN] [category] summary` lines there. The server console prints a compact

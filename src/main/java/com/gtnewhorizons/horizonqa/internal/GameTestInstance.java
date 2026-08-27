@@ -93,7 +93,7 @@ public class GameTestInstance {
                 .invoke(null, invocationArguments);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getCause();
-            rethrowIfFatal(cause);
+            FatalErrors.rethrow(cause);
             fail(cause != null ? cause : e);
         } catch (Exception e) {
             fail(e);
@@ -126,7 +126,7 @@ public class GameTestInstance {
                 try {
                     action.action.run();
                 } catch (Throwable t) {
-                    rethrowIfFatal(t);
+                    FatalErrors.rethrow(t);
                     fail(t);
                     return;
                 }
@@ -138,7 +138,7 @@ public class GameTestInstance {
             try {
                 sequence.tick(tickCount, TestPhase.START);
             } catch (Throwable t) {
-                rethrowIfFatal(t);
+                FatalErrors.rethrow(t);
                 fail(t);
             }
         }
@@ -155,7 +155,7 @@ public class GameTestInstance {
                     callback.runCallback();
                     if (status != GameTestStatus.RUNNING) return;
                 } catch (Throwable t) {
-                    rethrowIfFatal(t);
+                    FatalErrors.rethrow(t);
                     setFailureContext("Per-tick callback '" + callback.name + "' failed");
                     fail(t);
                     return;
@@ -170,7 +170,7 @@ public class GameTestInstance {
                     return;
                 }
             } catch (Throwable t) {
-                rethrowIfFatal(t);
+                FatalErrors.rethrow(t);
                 fail(t);
                 return;
             }
@@ -180,7 +180,7 @@ public class GameTestInstance {
             try {
                 sequence.tick(tickCount, TestPhase.END);
             } catch (Throwable t) {
-                rethrowIfFatal(t);
+                FatalErrors.rethrow(t);
                 fail(t);
                 return;
             }
@@ -304,23 +304,16 @@ public class GameTestInstance {
             } catch (Throwable t) {
                 cleanupFailure = appendCleanupFailure(cleanupFailure, t);
                 LOG.error("Exception in cleanup callback for {}: {}", definition.getTestId(), t.getMessage(), t);
-                if (fatalFailure == null && isFatal(t)) fatalFailure = (Error) t;
+                if (fatalFailure == null && FatalErrors.isFatal(t)) fatalFailure = (Error) t;
             }
         }
         cleanupCallbacks.clear();
         if (cleanupFailure != null) {
             cleanupFailureCause = cleanupFailure;
+            if (isExecutionAborted() && cleanupFailure != failureCause) failureCause.addSuppressed(cleanupFailure);
             status = GameTestStatus.ERROR;
         }
         if (fatalFailure != null) throw fatalFailure;
-    }
-
-    private static void rethrowIfFatal(Throwable error) {
-        if (isFatal(error)) throw (Error) error;
-    }
-
-    private static boolean isFatal(Throwable error) {
-        return error instanceof VirtualMachineError || error instanceof ThreadDeath || error instanceof LinkageError;
     }
 
     private static Throwable appendCleanupFailure(Throwable first, Throwable next) {
@@ -493,6 +486,11 @@ public class GameTestInstance {
 
     public Throwable getCleanupFailureCause() {
         return cleanupFailureCause;
+    }
+
+    public boolean isExecutionAborted() {
+        return failureCause instanceof GameTestInfrastructureException infrastructure
+            && "EXECUTION_ABORTED".equals(infrastructure.kind());
     }
 
     public String getFailureContext() {

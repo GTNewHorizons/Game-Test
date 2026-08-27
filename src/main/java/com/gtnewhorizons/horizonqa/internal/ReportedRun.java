@@ -11,8 +11,10 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -48,6 +50,7 @@ public final class ReportedRun {
     private final List<GameTestDefinition> runnableTests;
     private final GameTestRunner runner;
     private final FixturePreparation fixturePreparation;
+    private final Supplier<List<IssueResult>> configurationIssues;
     private final List<ResultEntry> resultEntries = new ArrayList<>();
     private final List<IssueResult> issues = new ArrayList<>();
     private Batch activeBatch;
@@ -62,8 +65,15 @@ public final class ReportedRun {
 
     public ReportedRun(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues) {
+        this(tests, beforeBatchMethods, afterBatchMethods, issues, Collections::emptyList);
+    }
+
+    public ReportedRun(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
+        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues,
+        Supplier<List<IssueResult>> configurationIssues) {
         runner = new GameTestRunner();
         fixturePreparation = new FixturePreparation();
+        this.configurationIssues = Objects.requireNonNull(configurationIssues, "configurationIssues");
         runnableTests = new ArrayList<>();
         for (GameTestDefinition test : tests) {
             if (test.isSkippedAtDiscovery()) {
@@ -88,7 +98,7 @@ public final class ReportedRun {
             } catch (RuntimeException e) {
                 abortAndFinish("Reported run failed during startup", e, true);
             } catch (Error e) {
-                if (isFatal(e)) {
+                if (FatalErrors.isFatal(e)) {
                     cleanupAfterFatal("Reported run failed during startup", e);
                     throw e;
                 }
@@ -99,11 +109,11 @@ public final class ReportedRun {
         return finished ? StartStatus.COMPLETED : StartStatus.STARTED;
     }
 
-    public static void shutdown() {
+    public static boolean shutdown() {
         ReportedRun run = current();
-        if (run != null) {
-            run.abortAndFinish("Server stopped before reported run completion", null, false);
-        }
+        if (run == null) return false;
+        run.abortAndFinish("Server stopped before reported run completion", null, false);
+        return true;
     }
 
     public static synchronized RunResult lastResult() {
@@ -115,6 +125,13 @@ public final class ReportedRun {
     }
 
     private void startClaimed() {
+        List<IssueResult> blockingIssues = Objects
+            .requireNonNull(configurationIssues.get(), "configurationIssues.get()");
+        if (!blockingIssues.isEmpty()) {
+            issues.clear();
+            issues.addAll(blockingIssues);
+        }
+
         mode = HorizonQAProperties.modeName();
         junitReportFile = HorizonQAProperties.junitReportFile();
         statusReportFile = HorizonQAProperties.statusReportFile();
@@ -132,7 +149,7 @@ public final class ReportedRun {
         }
         reportOutputsReady = true;
 
-        if (batches.isEmpty()) {
+        if (!blockingIssues.isEmpty() || batches.isEmpty()) {
             finish(true, exitWhenComplete);
             return;
         }
@@ -148,7 +165,7 @@ public final class ReportedRun {
         } catch (RuntimeException e) {
             abortAndFinish("Reported run failed during batch execution", e, true);
         } catch (Error e) {
-            if (isFatal(e)) {
+            if (FatalErrors.isFatal(e)) {
                 cleanupAfterFatal("Reported run failed during batch execution", e);
                 throw e;
             }
@@ -251,7 +268,7 @@ public final class ReportedRun {
         try {
             runner.abortIfActive(message, cause);
         } catch (Error e) {
-            if (isFatal(e)) {
+            if (FatalErrors.isFatal(e)) {
                 cleanupAfterFatal(message, e);
                 throw e;
             }
@@ -347,7 +364,7 @@ public final class ReportedRun {
                 m.invoke(null);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
-                rethrowIfFatal(cause);
+                FatalErrors.rethrow(cause);
                 IssueResult issue = hookIssue(phase, batch, m, cause, affectedTests);
                 logHookIssue(phase, batch, m, cause);
                 failures.add(issue);
@@ -544,7 +561,7 @@ public final class ReportedRun {
         } catch (RuntimeException e) {
             issues.add(cleanupIssue("Chunk release failed: " + errorMessage(e), e));
         } catch (Error e) {
-            if (isFatal(e)) throw e;
+            if (FatalErrors.isFatal(e)) throw e;
             issues.add(cleanupIssue("Chunk release failed: " + errorMessage(e), e));
         }
     }
@@ -596,14 +613,6 @@ public final class ReportedRun {
         StringWriter sw = new StringWriter();
         error.printStackTrace(new PrintWriter(sw));
         return sw.toString();
-    }
-
-    private static void rethrowIfFatal(Throwable error) {
-        if (isFatal(error)) throw (Error) error;
-    }
-
-    private static boolean isFatal(Throwable error) {
-        return error instanceof VirtualMachineError || error instanceof ThreadDeath || error instanceof LinkageError;
     }
 
     private static synchronized ReportedRun current() {

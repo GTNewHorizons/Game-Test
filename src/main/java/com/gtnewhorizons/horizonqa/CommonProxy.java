@@ -89,16 +89,14 @@ public class CommonProxy {
 
     public void serverStarting(FMLServerStartingEvent event) {
         ReportedRun.clearLastResult();
-        List<PropertyIssue> startupPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
-        boolean autoRunBlocked = false;
-        if (!startupPropertyIssues.isEmpty()) {
-            logInfrastructureIssues(startupPropertyIssues);
+        if (HorizonQAProperties.hasModeError()) {
             new ReportedRun(
                 Collections.emptyList(),
                 Collections.emptyMap(),
                 Collections.emptyMap(),
-                toPropertyIssueResults(startupPropertyIssues)).start();
-            autoRunBlocked = true;
+                Collections.emptyList(),
+                CommonProxy::ciConfigurationIssues).start();
+            return;
         }
         if (HorizonQAProperties.isOff()) return;
 
@@ -108,7 +106,7 @@ public class CommonProxy {
         HorizonQAMod.LOG.info("Discovering tests...");
         DiscoveryResult discovery = GameTestRegistry.discoverTests();
 
-        if (!HorizonQAProperties.autoRunTests() || autoRunBlocked) return;
+        if (!HorizonQAProperties.autoRunTests()) return;
 
         GameTestSelection selection = GameTestSelection.from(discovery);
         List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
@@ -127,28 +125,35 @@ public class CommonProxy {
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-        } else {
-            HorizonQAMod.LOG.info(
-                "Starting {} selected test(s) in auto-run mode.",
-                selection.selectedTests()
-                    .size());
         }
         ReportedRun.StartStatus status = new ReportedRun(
             selection.selectedTests(),
             discovery.beforeBatchMethods(),
             discovery.afterBatchMethods(),
-            issues).start();
+            issues,
+            CommonProxy::ciConfigurationIssues).start();
         if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
             HorizonQAMod.LOG.error("Could not start automatic reported run because execution is already active.");
+        } else if (status == ReportedRun.StartStatus.STARTED) {
+            HorizonQAMod.LOG.info(
+                "Starting {} selected test(s) in auto-run mode.",
+                selection.selectedTests()
+                    .size());
         }
     }
 
     public void serverStopping(FMLServerStoppingEvent event) {
-        ReportedRun.shutdown();
+        boolean reportedRunReleasedChunks = ReportedRun.shutdown();
         InteractiveTestSession.reset();
         GameTestRunner.shutdown();
-        HorizonQAMod.CHUNK_LOADER.releaseAll();
+        if (!reportedRunReleasedChunks) HorizonQAMod.CHUNK_LOADER.releaseAll();
         ReportedRun.clearLastResult();
+    }
+
+    private static List<IssueResult> ciConfigurationIssues() {
+        List<PropertyIssue> issues = HorizonQAProperties.ciInfrastructureIssues();
+        logInfrastructureIssues(issues);
+        return toPropertyIssueResults(issues);
     }
 
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {

@@ -60,6 +60,7 @@ public class ReportedRunTest {
     @Test
     public void batchLaunchCannotReplaceInteractiveOwner() {
         int[] interactiveStarts = new int[1];
+        int[] configurationChecks = new int[1];
         GameTestRunner interactive = new GameTestRunner();
         assertTrue(
             interactive.tryStart(
@@ -69,13 +70,55 @@ public class ReportedRunTest {
             Collections.emptyList(),
             Collections.emptyMap(),
             Collections.emptyMap(),
-            Collections.emptyList());
+            Collections.emptyList(),
+            () -> {
+                configurationChecks[0]++;
+                return Collections.emptyList();
+            });
 
         ReportedRun.StartStatus status = run.start();
         GameTestRunner.handleTickStart();
 
         assertEquals(ReportedRun.StartStatus.ALREADY_ACTIVE, status);
         assertEquals(1, interactiveStarts[0]);
+        assertEquals(0, configurationChecks[0]);
+    }
+
+    @Test
+    public void configurationIssuesAreEvaluatedAfterClaimAndBlockExecution() {
+        int[] configurationChecks = new int[1];
+        IssueResult issue = new IssueResult(
+            "config:test",
+            "CONFIG_ERROR",
+            "horizonqa.configuration",
+            "test configuration",
+            "invalid configuration",
+            "",
+            true);
+        ReportedRun run = new ReportedRun(
+            Collections.emptyList(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyList(),
+            () -> {
+                configurationChecks[0]++;
+                return Collections.singletonList(issue);
+            });
+
+        assertEquals(ReportedRun.StartStatus.COMPLETED, run.start());
+
+        assertEquals(1, configurationChecks[0]);
+        assertEquals(
+            "config:test",
+            ReportedRun.lastResult()
+                .issues()
+                .get(0)
+                .id());
+        assertEquals(
+            2,
+            ReportedRun.lastResult()
+                .exitCode());
+        assertFalse(GameTestRunner.isBatchActive());
     }
 
     @Test
@@ -106,9 +149,9 @@ public class ReportedRunTest {
             Collections.emptyList());
         assertEquals(ReportedRun.StartStatus.STARTED, run.start());
 
-        ReportedRun.shutdown();
+        assertTrue(ReportedRun.shutdown());
         RunResult result = ReportedRun.lastResult();
-        ReportedRun.shutdown();
+        assertFalse(ReportedRun.shutdown());
 
         assertSame(result, ReportedRun.lastResult());
         assertNotNull(result);

@@ -19,7 +19,7 @@ public class RunReportWriterTest {
     public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test
-    public void junitFailureIsIncludedInLaterStatusReport() throws Exception {
+    public void junitFailureDoesNotSkipStatusReport() throws Exception {
         File junitDirectory = temporaryFolder.newFolder("junit-target");
         File statusFile = new File(temporaryFolder.getRoot(), "status.json");
 
@@ -32,8 +32,6 @@ public class RunReportWriterTest {
                 .get(0)
                 .kind());
         assertTrue(statusFile.isFile());
-        String status = new String(Files.readAllBytes(statusFile.toPath()), StandardCharsets.UTF_8);
-        assertTrue(status.contains("REPORT_WRITE_ERROR"));
     }
 
     @Test
@@ -49,6 +47,23 @@ public class RunReportWriterTest {
                 .get(0)
                 .id());
         assertTrue(statusFile.isFile());
+    }
+
+    @Test
+    public void statusFailureIsIncludedInJUnitReport() throws Exception {
+        File junitFile = new File(temporaryFolder.getRoot(), "TEST.xml");
+        File statusDirectory = temporaryFolder.newFolder("status-target");
+
+        RunResult written = RunReportWriter.write(result(), junitFile, statusDirectory, LogManager.getLogger());
+
+        assertEquals(
+            "reporting:status",
+            written.issues()
+                .get(0)
+                .id());
+        assertTrue(junitFile.isFile());
+        String junit = new String(Files.readAllBytes(junitFile.toPath()), StandardCharsets.UTF_8);
+        assertTrue(junit.contains("REPORT_WRITE_ERROR"));
     }
 
     private static RunResult result() {

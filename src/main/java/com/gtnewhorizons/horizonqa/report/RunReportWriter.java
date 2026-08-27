@@ -5,22 +5,14 @@ import java.io.IOException;
 
 import org.apache.logging.log4j.Logger;
 
+import com.gtnewhorizons.horizonqa.internal.FatalErrors;
+
 public final class RunReportWriter {
 
     private RunReportWriter() {}
 
     public static RunResult write(RunResult result, File junitFile, File statusFile, Logger log) {
-        try {
-            JUnitXmlReporter.write(result, junitFile);
-            log.info("JUnit XML report written to {}", path(junitFile));
-        } catch (IOException | RuntimeException e) {
-            log.error("Failed to write JUnit XML report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("junit", path(junitFile), e));
-        } catch (Error e) {
-            rethrowIfFatal(e);
-            log.error("Failed to write JUnit XML report: {}", e.getMessage());
-            result = result.withAdditionalIssue(IssueResult.reporting("junit", path(junitFile), e));
-        }
+        result = writeConsole(result, log);
 
         try {
             StatusJsonReporter.write(result, statusFile);
@@ -29,11 +21,23 @@ public final class RunReportWriter {
             log.error("Failed to write status JSON report: {}", e.getMessage());
             result = result.withAdditionalIssue(IssueResult.reporting("status", path(statusFile), e));
         } catch (Error e) {
-            rethrowIfFatal(e);
+            FatalErrors.rethrow(e);
             log.error("Failed to write status JSON report: {}", e.getMessage());
             result = result.withAdditionalIssue(IssueResult.reporting("status", path(statusFile), e));
         }
-        return writeConsole(result, log);
+
+        try {
+            JUnitXmlReporter.write(result, junitFile);
+            log.info("JUnit XML report written to {}", path(junitFile));
+        } catch (IOException | RuntimeException e) {
+            log.error("Failed to write JUnit XML report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("junit", path(junitFile), e));
+        } catch (Error e) {
+            FatalErrors.rethrow(e);
+            log.error("Failed to write JUnit XML report: {}", e.getMessage());
+            result = result.withAdditionalIssue(IssueResult.reporting("junit", path(junitFile), e));
+        }
+        return result;
     }
 
     public static RunResult writeConsole(RunResult result, Logger log) {
@@ -43,7 +47,7 @@ public final class RunReportWriter {
             log.error("Failed to write console report: {}", e.getMessage());
             result = result.withAdditionalIssue(IssueResult.reporting("console", "", e));
         } catch (Error e) {
-            rethrowIfFatal(e);
+            FatalErrors.rethrow(e);
             log.error("Failed to write console report: {}", e.getMessage());
             result = result.withAdditionalIssue(IssueResult.reporting("console", "", e));
         }
@@ -52,11 +56,5 @@ public final class RunReportWriter {
 
     private static String path(File file) {
         return file == null ? "" : file.getAbsolutePath();
-    }
-
-    private static void rethrowIfFatal(Error error) {
-        if (error instanceof VirtualMachineError || error instanceof ThreadDeath || error instanceof LinkageError) {
-            throw error;
-        }
     }
 }

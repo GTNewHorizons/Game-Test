@@ -455,15 +455,17 @@ public class HorizonQACommand extends CommandBase {
 
     private static void startReportedBatch(ICommandSender sender, List<GameTestDefinition> tests,
         String launchedMessage) {
-        List<PropertyIssue> propertyIssues = HorizonQAProperties.reportInfrastructureIssues();
-        logPropertyIssues(propertyIssues);
-        List<IssueResult> issues = toPropertyIssueResults(propertyIssues);
-        List<GameTestDefinition> runnableTests = propertyIssues.isEmpty() ? tests : Collections.emptyList();
+        List<PropertyIssue> propertyIssues = new ArrayList<>();
         ReportedRun.StartStatus status = new ReportedRun(
-            runnableTests,
+            tests,
             GameTestRegistry.getBeforeBatchMethods(),
             GameTestRegistry.getAfterBatchMethods(),
-            issues).start();
+            Collections.emptyList(),
+            () -> {
+                propertyIssues.addAll(HorizonQAProperties.reportInfrastructureIssues());
+                logPropertyIssues(propertyIssues);
+                return toPropertyIssueResults(propertyIssues);
+            }).start();
         if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
             reportExecutionAlreadyActive(sender);
             return;
