@@ -1,7 +1,7 @@
 package com.gtnewhorizons.horizonqa;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraftforge.common.ForgeChunkManager;
@@ -10,23 +10,18 @@ import net.minecraftforge.common.MinecraftForge;
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
 import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
-import com.gtnewhorizons.horizonqa.internal.GameTestBatchRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection.SelectionIssue;
 import com.gtnewhorizons.horizonqa.internal.InteractiveTestSession;
+import com.gtnewhorizons.horizonqa.internal.ReportedRun;
 import com.gtnewhorizons.horizonqa.item.ItemHorizonWand;
 import com.gtnewhorizons.horizonqa.network.HorizonQANetwork;
-import com.gtnewhorizons.horizonqa.report.ConsoleReporter;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
-import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
-import com.gtnewhorizons.horizonqa.report.RunReportWriter;
-import com.gtnewhorizons.horizonqa.report.RunResult;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
-import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -93,34 +88,16 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {}
 
     public void serverStarting(FMLServerStartingEvent event) {
+        ReportedRun.clearLastResult();
         List<PropertyIssue> startupPropertyIssues = HorizonQAProperties.ciInfrastructureIssues();
         boolean autoRunBlocked = false;
-        if (!startupPropertyIssues.isEmpty() || HorizonQAProperties.autoRunTests()) {
-            List<IssueResult> reportPathIssues = ReportPathPreflight
-                .check(HorizonQAProperties.junitReportFile(), HorizonQAProperties.statusReportFile());
-            if (!reportPathIssues.isEmpty()) {
-                logReportPathIssues(reportPathIssues);
-                RunResult result = preRunResult(reportPathIssues);
-                // The configured report outputs just failed preflight; retrying them can create partial or colliding
-                // files, so report this class of failure to the console only.
-                ConsoleReporter.report(result);
-                if (shouldStopAfterStartupFailure()) {
-                    FMLCommonHandler.instance()
-                        .exitJava(result.exitCode(), false);
-                    return;
-                }
-                autoRunBlocked = true;
-            }
-        }
-        if (!startupPropertyIssues.isEmpty() && !autoRunBlocked) {
+        if (!startupPropertyIssues.isEmpty()) {
             logInfrastructureIssues(startupPropertyIssues);
-            RunResult result = preRunResult(toPropertyIssueResults(startupPropertyIssues));
-            result = writePreRunReport(result);
-            if (shouldStopAfterStartupFailure()) {
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
-                return;
-            }
+            new ReportedRun(
+                Collections.emptyList(),
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                toPropertyIssueResults(startupPropertyIssues)).start();
             autoRunBlocked = true;
         }
         if (HorizonQAProperties.isOff()) return;
@@ -150,37 +127,28 @@ public class CommonProxy {
             } else {
                 HorizonQAMod.LOG.error("No selected valid tests. Nothing to run.");
             }
-            RunResult result = preRunResult(issues);
-            result = writePreRunReport(result);
-            if (HorizonQAProperties.stopServerAfterRun()) {
-                FMLCommonHandler.instance()
-                    .exitJava(result.exitCode(), false);
-            }
-            return;
+        } else {
+            HorizonQAMod.LOG.info(
+                "Starting {} selected test(s) in auto-run mode.",
+                selection.selectedTests()
+                    .size());
         }
-
-        HorizonQAMod.LOG.info(
-            "Starting {} selected test(s) in auto-run mode.",
-            selection.selectedTests()
-                .size());
-        GameTestBatchRunner batchRunner = new GameTestBatchRunner(
+        ReportedRun.StartStatus status = new ReportedRun(
             selection.selectedTests(),
             discovery.beforeBatchMethods(),
             discovery.afterBatchMethods(),
-            issues,
-            HorizonQACommand::rememberReportedBatchResult);
-        batchRunner.start();
+            issues).start();
+        if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
+            HorizonQAMod.LOG.error("Could not start automatic reported run because execution is already active.");
+        }
     }
 
     public void serverStopping(FMLServerStoppingEvent event) {
+        ReportedRun.shutdown();
+        InteractiveTestSession.reset();
         GameTestRunner.shutdown();
         HorizonQAMod.CHUNK_LOADER.releaseAll();
-        InteractiveTestSession.reset();
-        HorizonQACommand.resetReportedResults();
-    }
-
-    private static boolean shouldStopAfterStartupFailure() {
-        return HorizonQAProperties.stopServerAfterRun() || HorizonQAProperties.hasModeError();
+        ReportedRun.clearLastResult();
     }
 
     private static void logInfrastructureIssues(List<PropertyIssue> issues) {
@@ -203,22 +171,6 @@ public class CommonProxy {
                 HorizonQAProperties.TESTS_PROPERTY,
                 issue.message());
         }
-    }
-
-    private static void logReportPathIssues(List<IssueResult> issues) {
-        HorizonQAMod.LOG.error("Report path preflight failed; aborting before test discovery/execution.");
-        for (IssueResult issue : issues) {
-            HorizonQAMod.LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
-        }
-    }
-
-    private static RunResult preRunResult(List<IssueResult> issues) {
-        File reportFile = HorizonQAProperties.junitReportFile();
-        return RunResult.preRun(HorizonQAProperties.modeName(), issues, reportFile.getPath());
-    }
-
-    private static RunResult writePreRunReport(RunResult result) {
-        return RunReportWriter.write(result, HorizonQAMod.LOG);
     }
 
     private static List<IssueResult> toIssueResults(List<SelectionIssue> issues) {

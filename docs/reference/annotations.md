@@ -70,7 +70,11 @@ Public static void no-arg methods bound to one global batch name.
 |-----------|----------|--------------------------------------------------------|
 | `value`   | `String` | Batch name; must match `GameTest.batch()` to bind      |
 
-During automatic or manually reported execution, every matching `@BeforeBatch` hook runs once before tests in the batch start. Every matching `@AfterBatch` hook runs once after all of those tests finish. A failed before-hook blocks the batch; a failed after-hook is reported as an infrastructure error.
+During automatic or manually reported execution, every matching `@BeforeBatch` hook runs once before tests in the batch
+start. Once batch setup begins, every matching `@AfterBatch` hook is owed exactly once. After-hooks run after normal test
+completion and are still attempted after a before-hook failure, setup failure, infrastructure failure, or reported-run
+shutdown. A failed before-hook blocks the batch; a failed after-hook is reported as an infrastructure error without
+preventing later after-hooks from running.
 
 Normal interactive commands do not group by `batch` and do not invoke batch hooks.
 

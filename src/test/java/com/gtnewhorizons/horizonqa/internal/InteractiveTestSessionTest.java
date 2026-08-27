@@ -10,7 +10,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Collections;
 import java.util.Set;
 
 import org.junit.After;
@@ -86,11 +85,8 @@ public class InteractiveTestSessionTest {
     @Test
     public void interactiveLaunchCannotReplaceReportedBatch() {
         GameTestDefinition definition = definition("horizonqatest:empty");
-        GameTestBatchRunner batch = new GameTestBatchRunner(
-            Collections.singletonList(definition),
-            Collections.emptyMap(),
-            Collections.emptyMap());
-        batch.start();
+        GameTestRunner batch = new GameTestRunner();
+        assertTrue(batch.tryStart(GameTestRunner.Kind.BATCH, () -> batch.scheduleOnFirstTick(() -> {})));
 
         assertEquals(
             0,

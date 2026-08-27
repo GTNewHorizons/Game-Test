@@ -8,10 +8,11 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Consumer;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -26,12 +27,13 @@ import com.gtnewhorizons.horizonqa.api.GameTestInfrastructureException;
 import com.gtnewhorizons.horizonqa.internal.InvalidBatchHook.HookPhase;
 import com.gtnewhorizons.horizonqa.report.CaseResult;
 import com.gtnewhorizons.horizonqa.report.IssueResult;
+import com.gtnewhorizons.horizonqa.report.ReportPathPreflight;
 import com.gtnewhorizons.horizonqa.report.RunReportWriter;
 import com.gtnewhorizons.horizonqa.report.RunResult;
 
 import cpw.mods.fml.common.FMLCommonHandler;
 
-public class GameTestBatchRunner {
+public final class ReportedRun {
 
     private static final Logger LOG = LogManager.getLogger("GameTest");
     private static final Comparator<Method> METHOD_ORDER = Comparator.comparing(
@@ -39,28 +41,30 @@ public class GameTestBatchRunner {
             .getName())
         .thenComparing(Method::getName);
 
+    private static ReportedRun currentRun;
+    private static RunResult lastResult;
+
     private final List<Batch> batches;
+    private final List<GameTestDefinition> runnableTests;
     private final GameTestRunner runner;
     private final FixturePreparation fixturePreparation;
     private final List<ResultEntry> resultEntries = new ArrayList<>();
     private final List<IssueResult> issues = new ArrayList<>();
-    private final Consumer<RunResult> onComplete;
+    private Batch activeBatch;
+    private boolean afterHooksOwed;
+    private boolean finishing;
+    private boolean finished;
+    private File junitReportFile = new File("TEST-horizonqa.xml");
+    private File statusReportFile = new File("horizonqa-result.json");
+    private String mode = "";
+    private boolean reportOutputsReady;
+    private boolean exitWhenComplete;
 
-    public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
-        Map<String, List<Method>> afterBatchMethods) {
-        this(tests, beforeBatchMethods, afterBatchMethods, Collections.emptyList(), null);
-    }
-
-    public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
+    public ReportedRun(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
         Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues) {
-        this(tests, beforeBatchMethods, afterBatchMethods, issues, null);
-    }
-
-    public GameTestBatchRunner(List<GameTestDefinition> tests, Map<String, List<Method>> beforeBatchMethods,
-        Map<String, List<Method>> afterBatchMethods, List<IssueResult> issues, Consumer<RunResult> onComplete) {
         runner = new GameTestRunner();
         fixturePreparation = new FixturePreparation();
-        List<GameTestDefinition> runnableTests = new ArrayList<>();
+        runnableTests = new ArrayList<>();
         for (GameTestDefinition test : tests) {
             if (test.isSkippedAtDiscovery()) {
                 resultEntries.add(
@@ -71,41 +75,91 @@ public class GameTestBatchRunner {
             }
         }
         batches = buildBatches(runnableTests, beforeBatchMethods, afterBatchMethods);
-        this.onComplete = onComplete;
         if (issues != null) {
             this.issues.addAll(issues);
         }
     }
 
-    public void start() {
-        if (!runner.tryStart(GameTestRunner.Kind.BATCH, () -> {
-            if (batches.isEmpty()) {
-                onAllBatchesDone();
-                return;
+    public StartStatus start() {
+        boolean acquired = runner.tryStart(GameTestRunner.Kind.BATCH, () -> {
+            setCurrent(this);
+            try {
+                startClaimed();
+            } catch (RuntimeException e) {
+                abortAndFinish("Reported run failed during startup", e, true);
+            } catch (Error e) {
+                if (isFatal(e)) {
+                    cleanupAfterFatal("Reported run failed during startup", e);
+                    throw e;
+                }
+                abortAndFinish("Reported run failed during startup", e, true);
             }
-            // Placement and getTileEntity are unreliable during FMLServerStartingEvent (before the first server
-            // tick). Defer until the world has ticked once, matching /gametest runAll during normal gameplay.
-            runner.scheduleOnFirstTick(() -> runBatchSafely(0));
-        })) {
-            throw new IllegalStateException("A GameTest batch is already running.");
+        });
+        if (!acquired) return StartStatus.ALREADY_ACTIVE;
+        return finished ? StartStatus.COMPLETED : StartStatus.STARTED;
+    }
+
+    public static void shutdown() {
+        ReportedRun run = current();
+        if (run != null) {
+            run.abortAndFinish("Server stopped before reported run completion", null, false);
         }
+    }
+
+    public static synchronized RunResult lastResult() {
+        return lastResult;
+    }
+
+    public static synchronized void clearLastResult() {
+        lastResult = null;
+    }
+
+    private void startClaimed() {
+        mode = HorizonQAProperties.modeName();
+        junitReportFile = HorizonQAProperties.junitReportFile();
+        statusReportFile = HorizonQAProperties.statusReportFile();
+        exitWhenComplete = HorizonQAProperties.stopServerAfterRun() || HorizonQAProperties.hasModeError();
+
+        List<IssueResult> pathIssues = ReportPathPreflight.check(junitReportFile, statusReportFile);
+        if (!pathIssues.isEmpty()) {
+            LOG.error("Report path preflight failed; reported run was not launched.");
+            for (IssueResult issue : pathIssues) {
+                LOG.error("Infrastructure issue [{}] {}: {}", issue.id(), issue.name(), issue.message());
+            }
+            issues.addAll(pathIssues);
+            finish(false, exitWhenComplete);
+            return;
+        }
+        reportOutputsReady = true;
+
+        if (batches.isEmpty()) {
+            finish(true, exitWhenComplete);
+            return;
+        }
+
+        // Batch setup runs in the first START phase, before the world tick. Instances created here receive their
+        // first START callback in this phase; batches created from an END completion begin on the next START.
+        runner.scheduleOnFirstTick(() -> runBatchSafely(0));
     }
 
     private void runBatchSafely(int idx) {
         try {
             runBatch(idx);
-        } catch (RuntimeException | Error e) {
-            cleanupAfterUnexpectedFailure();
-            throw e;
+        } catch (RuntimeException e) {
+            abortAndFinish("Reported run failed during batch execution", e, true);
+        } catch (Error e) {
+            if (isFatal(e)) {
+                cleanupAfterFatal("Reported run failed during batch execution", e);
+                throw e;
+            }
+            abortAndFinish("Reported run failed during batch execution", e, true);
         }
-    }
-
-    private void cleanupAfterUnexpectedFailure() {
-        HorizonQAMod.CHUNK_LOADER.releaseAll();
     }
 
     private void runBatch(int idx) {
         Batch batch = batches.get(idx);
+        activeBatch = batch;
+        afterHooksOwed = true;
         LOG.info("--- Batch '{}' ({} test(s)) ---", batch.name, batch.tests.size());
 
         List<IssueResult> beforeIssues = invokeHooks(
@@ -120,6 +174,7 @@ public class GameTestBatchRunner {
             for (CaseResult skippedCase : skippedCasesForBeforeFailure(batch.tests, rootIssue)) {
                 resultEntries.add(ResultEntry.result(skippedCase));
             }
+            invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
             return;
         }
@@ -133,7 +188,8 @@ public class GameTestBatchRunner {
             for (CaseResult skippedCase : skippedCasesForIssue(remainingTests(idx), rootIssue, "WORLD_UNAVAILABLE")) {
                 resultEntries.add(ResultEntry.result(skippedCase));
             }
-            onAllBatchesDone();
+            invokeOwedAfterHooks();
+            finish(true, exitWhenComplete);
             return;
         }
 
@@ -146,7 +202,7 @@ public class GameTestBatchRunner {
             for (CaseResult skippedCase : skippedCasesForIssue(batch.tests, rootIssue, CaseResult.TEMPLATE_ERROR)) {
                 resultEntries.add(ResultEntry.result(skippedCase));
             }
-            issues.addAll(invokeHooks(batch.afterMethods, HookPhase.AFTER, batch.name, false, 0));
+            invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
             return;
         }
@@ -166,40 +222,16 @@ public class GameTestBatchRunner {
                 continue;
             }
             GameTestInstance inst = result.instance();
-            inst.start(world);
             batchInstances.add(inst);
-            resultEntries.add(ResultEntry.instance(inst));
         }
 
         runner.run(batchInstances, () -> {
-            issues.addAll(invokeHooks(batch.afterMethods, HookPhase.AFTER, batch.name, false, 0));
+            invokeOwedAfterHooks();
             runNextBatchOrFinish(idx);
         });
-    }
-
-    private void onAllBatchesDone() {
-        HorizonQAMod.CHUNK_LOADER.releaseAll();
-
-        File reportFile = HorizonQAProperties.junitReportFile();
-        RunResult result = RunResult
-            .completedCases(HorizonQAProperties.modeName(), collectCaseResults(), issues, reportFile.getPath());
-
-        result = RunReportWriter.write(result, LOG);
-
-        if (HorizonQAProperties.stopServerAfterRun()) {
-            LOG.info(
-                "Stopping server with code {} ({} required test failure/timeout(s), {} incomplete test(s), {} infrastructure issue(s)).",
-                result.exitCode(),
-                result.requiredFailures(),
-                result.incomplete(),
-                result.infrastructureErrors());
-        }
-        if (onComplete != null) {
-            onComplete.accept(result);
-        }
-        if (HorizonQAProperties.stopServerAfterRun()) {
-            FMLCommonHandler.instance()
-                .exitJava(result.exitCode(), false);
+        for (GameTestInstance instance : batchInstances) {
+            resultEntries.add(ResultEntry.instance(instance));
+            instance.start(world);
         }
     }
 
@@ -208,7 +240,93 @@ public class GameTestBatchRunner {
         if (next < batches.size()) {
             runBatchSafely(next);
         } else {
-            onAllBatchesDone();
+            finish(true, exitWhenComplete);
+        }
+    }
+
+    private void abortAndFinish(String message, Throwable cause, boolean allowExit) {
+        if (finishing || finished) return;
+        IssueResult rootIssue = executionAbortedIssue(message, cause);
+        issues.add(rootIssue);
+        try {
+            runner.abortIfActive(message, cause);
+        } catch (Error e) {
+            if (isFatal(e)) {
+                cleanupAfterFatal(message, e);
+                throw e;
+            }
+            issues.add(cleanupIssue("Execution cleanup failed: " + errorMessage(e), e));
+        } catch (RuntimeException e) {
+            issues.add(cleanupIssue("Execution cleanup failed: " + errorMessage(e), e));
+        }
+        invokeOwedAfterHooks();
+        addUnstartedCases(rootIssue);
+        finish(reportOutputsReady, allowExit && exitWhenComplete);
+    }
+
+    private void cleanupAfterFatal(String message, Error cause) {
+        try {
+            runner.abortIfActive(message, cause);
+        } catch (Throwable ignored) {}
+        try {
+            invokeOwedAfterHooks();
+        } catch (Throwable ignored) {}
+        try {
+            HorizonQAMod.CHUNK_LOADER.releaseAll();
+        } catch (Throwable ignored) {}
+        finishing = false;
+        finished = true;
+        clearCurrent(this);
+    }
+
+    private void invokeOwedAfterHooks() {
+        if (!afterHooksOwed || activeBatch == null) return;
+        Batch batch = activeBatch;
+        afterHooksOwed = false;
+        activeBatch = null;
+        issues.addAll(invokeHooks(batch.afterMethods, HookPhase.AFTER, batch.name, false, 0));
+    }
+
+    private void addUnstartedCases(IssueResult rootIssue) {
+        Set<String> represented = new LinkedHashSet<>();
+        for (ResultEntry entry : resultEntries) {
+            represented.add(entry.testId());
+        }
+        for (GameTestDefinition test : runnableTests) {
+            if (represented.add(test.getTestId())) {
+                resultEntries.add(
+                    ResultEntry.result(
+                        CaseResult.skippedByIssue(test, rootIssue.id(), rootIssue.message(), "EXECUTION_ABORTED")));
+            }
+        }
+    }
+
+    private void finish(boolean writeFiles, boolean exit) {
+        if (finishing || finished) return;
+        finishing = true;
+        try {
+            invokeOwedAfterHooks();
+            releaseChunks();
+
+            RunResult result = RunResult.completedCases(mode, collectCaseResults(), issues, junitReportFile.getPath());
+            result = writeFiles ? RunReportWriter.write(result, junitReportFile, statusReportFile, LOG)
+                : RunReportWriter.writeConsole(result, LOG);
+            publish(result);
+            finished = true;
+
+            if (exit) {
+                LOG.info(
+                    "Stopping server with code {} ({} required test failure/timeout(s), {} incomplete test(s), {} infrastructure issue(s)).",
+                    result.exitCode(),
+                    result.requiredFailures(),
+                    result.incomplete(),
+                    result.infrastructureErrors());
+                FMLCommonHandler.instance()
+                    .exitJava(result.exitCode(), false);
+            }
+        } finally {
+            finishing = false;
+            clearCurrent(this);
         }
     }
 
@@ -229,6 +347,7 @@ public class GameTestBatchRunner {
                 m.invoke(null);
             } catch (InvocationTargetException e) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
+                rethrowIfFatal(cause);
                 IssueResult issue = hookIssue(phase, batch, m, cause, affectedTests);
                 logHookIssue(phase, batch, m, cause);
                 failures.add(issue);
@@ -392,6 +511,44 @@ public class GameTestBatchRunner {
             stackTrace(error));
     }
 
+    private static IssueResult executionAbortedIssue(String message, Throwable error) {
+        String id = "runner:executionAborted";
+        String details = "issue.id=" + id + "\nkind=EXECUTION_ABORTED\n";
+        return new IssueResult(
+            id,
+            "EXECUTION_ABORTED",
+            "horizonqa.infrastructure",
+            "reported-run:execution",
+            message,
+            details,
+            true,
+            stackTrace(error));
+    }
+
+    private static IssueResult cleanupIssue(String message, Throwable error) {
+        String id = "runner:cleanup";
+        return new IssueResult(
+            id,
+            CaseResult.CLEANUP_ERROR,
+            "horizonqa.infrastructure",
+            "reported-run:cleanup",
+            message,
+            "issue.id=" + id + "\nkind=" + CaseResult.CLEANUP_ERROR + "\n",
+            true,
+            stackTrace(error));
+    }
+
+    private void releaseChunks() {
+        try {
+            HorizonQAMod.CHUNK_LOADER.releaseAll();
+        } catch (RuntimeException e) {
+            issues.add(cleanupIssue("Chunk release failed: " + errorMessage(e), e));
+        } catch (Error e) {
+            if (isFatal(e)) throw e;
+            issues.add(cleanupIssue("Chunk release failed: " + errorMessage(e), e));
+        }
+    }
+
     private static void logHookIssue(HookPhase phase, String batch, Method method, Throwable error) {
         LOG.error(
             "Exception in @{} method '{}' for batch '{}': {}",
@@ -441,6 +598,36 @@ public class GameTestBatchRunner {
         return sw.toString();
     }
 
+    private static void rethrowIfFatal(Throwable error) {
+        if (isFatal(error)) throw (Error) error;
+    }
+
+    private static boolean isFatal(Throwable error) {
+        return error instanceof VirtualMachineError || error instanceof ThreadDeath || error instanceof LinkageError;
+    }
+
+    private static synchronized ReportedRun current() {
+        return currentRun;
+    }
+
+    private static synchronized void setCurrent(ReportedRun run) {
+        currentRun = run;
+    }
+
+    private static synchronized void clearCurrent(ReportedRun run) {
+        if (currentRun == run) currentRun = null;
+    }
+
+    private static synchronized void publish(RunResult result) {
+        lastResult = result;
+    }
+
+    public enum StartStatus {
+        STARTED,
+        COMPLETED,
+        ALREADY_ACTIVE
+    }
+
     private static final class Batch {
 
         final String name;
@@ -469,6 +656,12 @@ public class GameTestBatchRunner {
 
         CaseResult toCaseResult() {
             return result != null ? result : CaseResult.from(instance);
+        }
+
+        String testId() {
+            return result != null ? result.id()
+                : instance.getDefinition()
+                    .getTestId();
         }
     }
 
