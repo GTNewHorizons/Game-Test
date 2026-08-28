@@ -35,6 +35,6 @@ public record DuplicateTestId(String testId, List<Method> methods, List<String> 
                         .getName());
             }
         }
-        return Collections.unmodifiableList(new ArrayList<>(names));
+        return new ArrayList<>(names);
     }
 }

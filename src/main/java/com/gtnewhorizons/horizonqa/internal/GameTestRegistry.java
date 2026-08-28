@@ -413,7 +413,7 @@ public final class GameTestRegistry {
                 collector.issues.add(issue);
                 LOG.warn(issue.message());
             }
-            collector.invalidTests.add(new InvalidTestDefinition(intendedTestId, method, immutableList(issues)));
+            collector.invalidTests.add(new InvalidTestDefinition(intendedTestId, method, issues));
             return;
         }
 
@@ -493,7 +493,7 @@ public final class GameTestRegistry {
                 collector.issues.add(issue);
                 LOG.warn(issue.message());
             }
-            collector.invalidHooks.add(new InvalidBatchHook(phase, batch, method, immutableList(issues)));
+            collector.invalidHooks.add(new InvalidBatchHook(phase, batch, method, issues));
             return;
         }
 
@@ -730,12 +730,8 @@ public final class GameTestRegistry {
                 "discovery:duplicateId:" + testId,
                 KIND_DUPLICATE_TEST_ID,
                 "Duplicate @GameTest id '" + testId + "' found in " + sourceRefs + "; all duplicates are excluded.");
-            collector.duplicateIds.add(
-                new DuplicateTestId(
-                    testId,
-                    immutableList(methods),
-                    immutableList(new ArrayList<>(holderClassNames)),
-                    parameterized));
+            collector.duplicateIds
+                .add(new DuplicateTestId(testId, methods, new ArrayList<>(holderClassNames), parameterized));
             collector.issues.add(issue);
             LOG.warn(issue.message());
         }
