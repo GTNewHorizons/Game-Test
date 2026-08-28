@@ -477,6 +477,7 @@ public class ReportedRunTest {
 
     public static final class ParameterizedDefinitions {
 
+        @SuppressWarnings("unused")
         public static void test(GameTestHelper helper, int value) {}
     }
 }

@@ -21,7 +21,7 @@ import com.gtnewhorizons.horizonqa.api.GameTestHelper;
 public class GameTestSelectionTest {
 
     @Test
-    public void selectsAllValidTestsWhenSelectorsAreAbsent() throws Exception {
+    public void selectsAllValidTestsWhenSelectorsAreAbsent() throws NoSuchMethodException {
         List<GameTestDefinition> validTests = Arrays
             .asList(definition("moda:Suite.first"), definition("modb:Suite.second"));
 
@@ -35,7 +35,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void selectorsDeduplicateAndPreserveDiscoveryOrder() throws Exception {
+    public void selectorsDeduplicateAndPreserveDiscoveryOrder() throws NoSuchMethodException {
         List<GameTestDefinition> validTests = Arrays
             .asList(definition("moda:Suite.first"), definition("moda:Suite.extra"), definition("modb:Suite.second"));
         List<TestSelector> selectors = Arrays.asList(
@@ -53,7 +53,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void holderSelectorsAcceptSimpleAndFullyQualifiedClassNames() throws Exception {
+    public void holderSelectorsAcceptSimpleAndFullyQualifiedClassNames() throws NoSuchMethodException {
         GameTestDefinition dummy = definition("moda:DummyTests.first", DummyTests.class);
         GameTestDefinition other = definition("moda:OtherTests.second", OtherTests.class);
         List<GameTestDefinition> validTests = Arrays.asList(dummy, other);
@@ -97,7 +97,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void testIdPrefixSelectsEveryMatchingMethod() throws Exception {
+    public void testIdPrefixSelectsEveryMatchingMethod() throws NoSuchMethodException {
         List<GameTestDefinition> validTests = Arrays.asList(
             definition("moda:IOPortTests.fillModeImports"),
             definition("moda:IOPortTests.fillModeExports"),
@@ -111,7 +111,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void unmatchedSelectorsDescribeWhyNothingValidMatched() throws Exception {
+    public void unmatchedSelectorsDescribeWhyNothingValidMatched() throws NoSuchMethodException {
         Method method = DummyTests.class.getMethod("test", GameTestHelper.class);
         List<GameTestDefinition> validTests = Collections.singletonList(definition("moda:Suite.first"));
         List<InvalidTestDefinition> invalidTests = Collections
@@ -148,7 +148,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void holderSelectorsDiagnoseInvalidAndDuplicateDefinitions() throws Exception {
+    public void holderSelectorsDiagnoseInvalidAndDuplicateDefinitions() throws NoSuchMethodException {
         Method invalidMethod = InvalidHolderTests.class.getMethod("test", GameTestHelper.class);
         Method duplicateMethod = DuplicateHolderTests.class.getMethod("test", GameTestHelper.class);
         List<InvalidTestDefinition> invalidTests = Collections.singletonList(
@@ -200,7 +200,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void repeatedUnmatchedSelectorsEmitOneIssue() throws Exception {
+    public void repeatedUnmatchedSelectorsEmitOneIssue() {
         List<TestSelector> selectors = Arrays.asList(
             new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "missing"),
             new TestSelector(SelectorType.NAMESPACE_OR_HOLDER, "missing"));
@@ -224,7 +224,7 @@ public class GameTestSelectionTest {
     }
 
     @Test
-    public void catalogDefensivelyCopiesDiscoveryState() throws Exception {
+    public void catalogDefensivelyCopiesDiscoveryState() throws NoSuchMethodException {
         GameTestDefinition definition = definition("moda:Suite.first");
         Method method = DummyTests.class.getMethod("test", GameTestHelper.class);
         DiscoveryIssue issue = new DiscoveryIssue("discovery:test", "DISCOVERY_ERROR", "broken");
@@ -305,11 +305,11 @@ public class GameTestSelectionTest {
             Collections.emptyList());
     }
 
-    private static GameTestDefinition definition(String testId) throws Exception {
+    private static GameTestDefinition definition(String testId) throws NoSuchMethodException {
         return definition(testId, DummyTests.class);
     }
 
-    private static GameTestDefinition definition(String testId, Class<?> holderClass) throws Exception {
+    private static GameTestDefinition definition(String testId, Class<?> holderClass) throws NoSuchMethodException {
         return new GameTestDefinition(testId, holderClass.getMethod("test", GameTestHelper.class), "", 20, "", true, 0);
     }
 

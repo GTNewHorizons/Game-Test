@@ -48,7 +48,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void tabCompletionListsOnlyRunnableTests() throws Exception {
+    public void tabCompletionListsOnlyRunnableTests() {
         HorizonQACommand command = new HorizonQACommand(catalog(RunnableTests.class, InvalidTests.class));
 
         List<String> runCompletions = command
@@ -67,7 +67,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void runAllCompletionUsesParameterizedBaseIdentity() throws Exception {
+    public void runAllCompletionUsesParameterizedBaseIdentity() {
         List<String> completions = new HorizonQACommand(catalog(ParameterizedTests.class))
             .addTabCompletionOptions(new RecordingSender(), new String[] { "runall", "" });
 
@@ -78,7 +78,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void teleportTabCompletionListsOnlyPlacedCells() throws Exception {
+    public void teleportTabCompletionListsOnlyPlacedCells() throws ReflectiveOperationException {
         java.util.Map<String, TestCell> knownCells = (java.util.Map<String, TestCell>) sessionField("knownCells")
             .get(InteractiveTestSession.get());
         knownCells
@@ -93,7 +93,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void loadTabCompletionListsDiscoveredTemplates() throws Exception {
+    public void loadTabCompletionListsDiscoveredTemplates() {
         List<String> completions = new HorizonQACommand(catalog(RunnableTests.class))
             .addTabCompletionOptions(new RecordingSender(), new String[] { "load", "" });
 
@@ -113,7 +113,7 @@ public class HorizonQACommandTest {
     }
 
     @Test
-    public void runKnownInvalidTestReportsInvalidInsteadOfUnknown() throws Exception {
+    public void runKnownInvalidTestReportsInvalidInsteadOfUnknown() {
         String invalidId = "bad:InvalidTests.invalid";
 
         RecordingSender sender = new RecordingSender();
@@ -151,7 +151,7 @@ public class HorizonQACommandTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void clearAllClearsInteractiveFailedIds() throws Exception {
+    public void clearAllClearsInteractiveFailedIds() throws ReflectiveOperationException {
         Set<String> failedIds = (Set<String>) sessionField("failedIds").get(InteractiveTestSession.get());
         failedIds.add("mod:Suite.failed");
 
@@ -182,7 +182,7 @@ public class HorizonQACommandTest {
         return GameTestRegistry.discoverTests(table);
     }
 
-    private static Field sessionField(String name) throws Exception {
+    private static Field sessionField(String name) throws NoSuchFieldException {
         Field field = InteractiveTestSession.class.getDeclaredField(name);
         field.setAccessible(true);
         return field;
