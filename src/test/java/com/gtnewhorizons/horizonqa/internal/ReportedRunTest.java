@@ -8,6 +8,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,9 +68,8 @@ public class ReportedRunTest {
                 GameTestRunner.Kind.INTERACTIVE,
                 () -> interactive.scheduleOnFirstTick(() -> interactiveStarts[0]++)));
         ReportedRun run = new ReportedRun(
+            catalog(Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap()),
             Collections.emptyList(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
             Collections.emptyList(),
             () -> {
                 configurationChecks[0]++;
@@ -96,9 +96,8 @@ public class ReportedRunTest {
             "",
             true);
         ReportedRun run = new ReportedRun(
+            catalog(Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap()),
             Collections.emptyList(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
             Collections.emptyList(),
             () -> {
                 configurationChecks[0]++;
@@ -124,9 +123,8 @@ public class ReportedRunTest {
     @Test
     public void emptyRunCompletesSynchronouslyAndPublishesReports() {
         ReportedRun run = new ReportedRun(
+            catalog(Collections.emptyList(), Collections.emptyMap(), Collections.emptyMap()),
             Collections.emptyList(),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
             Collections.emptyList());
 
         ReportedRun.StartStatus status = run.start();
@@ -142,10 +140,10 @@ public class ReportedRunTest {
 
     @Test
     public void shutdownPublishesAbortedAndUnstartedCasesExactlyOnce() throws Exception {
+        List<GameTestDefinition> tests = Collections.singletonList(definition("mod:Suite.pending", true));
         ReportedRun run = new ReportedRun(
-            Collections.singletonList(definition("mod:Suite.pending", true)),
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            catalog(tests, Collections.emptyMap(), Collections.emptyMap()),
+            tests,
             Collections.emptyList());
         assertEquals(ReportedRun.StartStatus.STARTED, run.start());
 
@@ -190,11 +188,8 @@ public class ReportedRunTest {
         Method restore = LifecycleHooks.class.getMethod("restore");
         Map<String, List<Method>> before = Collections.singletonMap("cleanup", Arrays.asList(fail, mutate));
         Map<String, List<Method>> after = Collections.singletonMap("cleanup", Collections.singletonList(restore));
-        ReportedRun run = new ReportedRun(
-            Collections.singletonList(definition("mod:Suite.blocked", true, "cleanup")),
-            before,
-            after,
-            Collections.emptyList());
+        List<GameTestDefinition> tests = Collections.singletonList(definition("mod:Suite.blocked", true, "cleanup"));
+        ReportedRun run = new ReportedRun(catalog(tests, before, after), tests, Collections.emptyList());
 
         assertEquals(ReportedRun.StartStatus.STARTED, run.start());
         GameTestRunner.handleTickStart();
@@ -226,6 +221,27 @@ public class ReportedRunTest {
         List<Method> sorted = ReportedRun.sortedHookMethods(Arrays.asList(beta, zeta, alpha));
 
         assertEquals(Arrays.asList(alpha, zeta, beta), sorted);
+    }
+
+    @Test
+    public void batchBuilderPreservesParameterizedEncounterOrder() throws Exception {
+        Method testMethod = ParameterizedDefinitions.class.getMethod("test", GameTestHelper.class, int.class);
+        String baseTestId = "matrix:EncounterOrderTests.inSourceOrder";
+        List<GameTestDefinition> definitions = Arrays.asList(
+            parameterized(baseTestId, "zeta", 0, testMethod),
+            parameterized(baseTestId, "alpha", 1, testMethod),
+            parameterized(baseTestId, "middle", 2, testMethod));
+        GameTestCatalog catalog = catalog(definitions, Collections.emptyMap(), Collections.emptyMap());
+
+        Method buildBatches = ReportedRun.class.getDeclaredMethod("buildBatches", List.class, GameTestCatalog.class);
+        buildBatches.setAccessible(true);
+        List<?> batches = (List<?>) buildBatches.invoke(null, definitions, catalog);
+        Field tests = batches.get(0)
+            .getClass()
+            .getDeclaredField("tests");
+        tests.setAccessible(true);
+
+        assertEquals(definitions, tests.get(batches.get(0)));
     }
 
     @Test
@@ -353,6 +369,33 @@ public class ReportedRunTest {
             0);
     }
 
+    private static GameTestDefinition parameterized(String baseTestId, String caseName, int caseOrdinal,
+        Method method) {
+        return GameTestDefinition.parameterized(
+            baseTestId,
+            caseName,
+            caseOrdinal,
+            method,
+            "",
+            20,
+            "matrix",
+            true,
+            0,
+            new Object[] { caseOrdinal });
+    }
+
+    private static GameTestCatalog catalog(List<GameTestDefinition> tests, Map<String, List<Method>> before,
+        Map<String, List<Method>> after) {
+        return new GameTestCatalog(
+            tests,
+            before,
+            after,
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList());
+    }
+
     public static final class AlphaHooks {
 
         public static void alpha() {}
@@ -430,5 +473,11 @@ public class ReportedRunTest {
     public static final class TestDefinitions {
 
         public static void test(GameTestHelper helper) {}
+    }
+
+    public static final class ParameterizedDefinitions {
+
+        @SuppressWarnings("unused")
+        public static void test(GameTestHelper helper, int value) {}
     }
 }

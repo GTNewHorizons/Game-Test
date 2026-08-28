@@ -1,7 +1,6 @@
 package com.gtnewhorizons.horizonqa;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import net.minecraftforge.common.ForgeChunkManager;
@@ -9,7 +8,7 @@ import net.minecraftforge.common.MinecraftForge;
 
 import com.gtnewhorizons.horizonqa.HorizonQAProperties.PropertyIssue;
 import com.gtnewhorizons.horizonqa.command.HorizonQACommand;
-import com.gtnewhorizons.horizonqa.internal.DiscoveryResult;
+import com.gtnewhorizons.horizonqa.internal.GameTestCatalog;
 import com.gtnewhorizons.horizonqa.internal.GameTestRegistry;
 import com.gtnewhorizons.horizonqa.internal.GameTestRunner;
 import com.gtnewhorizons.horizonqa.internal.GameTestSelection;
@@ -22,6 +21,7 @@ import com.gtnewhorizons.horizonqa.report.IssueResult;
 import com.gtnewhorizons.horizonqa.visual.SelectionBoxRenderer;
 import com.gtnewhorizons.horizonqa.world.GameTestWorldType;
 
+import cpw.mods.fml.common.discovery.ASMDataTable;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -30,6 +30,8 @@ import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public class CommonProxy {
+
+    private ASMDataTable asmData;
 
     public void preInit(FMLPreInitializationEvent event) {
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
@@ -71,7 +73,7 @@ public class CommonProxy {
         }
 
         ForgeChunkManager.setForcedChunkLoadingCallback(HorizonQAMod.instance, HorizonQAMod.CHUNK_LOADER);
-        GameTestRegistry.setAsmData(event.getAsmData());
+        asmData = event.getAsmData();
 
         ItemHorizonWand.INSTANCE = new ItemHorizonWand();
         GameRegistry.registerItem(ItemHorizonWand.INSTANCE, "wand");
@@ -90,30 +92,29 @@ public class CommonProxy {
     public void serverStarting(FMLServerStartingEvent event) {
         ReportedRun.clearLastResult();
         if (HorizonQAProperties.hasModeError()) {
-            new ReportedRun(
-                Collections.emptyList(),
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                Collections.emptyList(),
-                CommonProxy::ciConfigurationIssues).start();
+            ReportedRun.configurationFailure(CommonProxy::ciConfigurationIssues)
+                .start();
             return;
         }
         if (HorizonQAProperties.isOff()) return;
 
         InteractiveTestSession.reset();
-        event.registerServerCommand(new HorizonQACommand());
 
         HorizonQAMod.LOG.info("Discovering tests...");
-        DiscoveryResult discovery = GameTestRegistry.discoverTests();
+        GameTestCatalog catalog = GameTestRegistry.discoverTests(asmData);
+        event.registerServerCommand(new HorizonQACommand(catalog));
 
         if (!HorizonQAProperties.autoRunTests()) return;
 
-        GameTestSelection selection = GameTestSelection.from(discovery);
+        GameTestSelection selection = catalog
+            .select(HorizonQAProperties.selectsAllTests(), HorizonQAProperties.testSelectors());
         List<SelectionIssue> infrastructureIssues = new ArrayList<>(selection.infrastructureIssues());
         if (selection.selectedTests()
             .isEmpty() && infrastructureIssues.isEmpty()
             && !HorizonQAProperties.allowNoTests()) {
-            infrastructureIssues.add(GameTestSelection.noSelectedTests(HorizonQAProperties.selectsAllTests()));
+            infrastructureIssues.add(
+                GameTestSelection
+                    .noSelectedTests(HorizonQAProperties.selectsAllTests(), HorizonQAProperties.rawTests()));
         }
         logSelectionIssues(infrastructureIssues);
         List<IssueResult> issues = toIssueResults(infrastructureIssues);
@@ -127,9 +128,8 @@ public class CommonProxy {
             }
         }
         ReportedRun.StartStatus status = new ReportedRun(
+            catalog,
             selection.selectedTests(),
-            discovery.beforeBatchMethods(),
-            discovery.afterBatchMethods(),
             issues,
             CommonProxy::ciConfigurationIssues).start();
         if (status == ReportedRun.StartStatus.ALREADY_ACTIVE) {
